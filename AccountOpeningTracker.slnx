@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/Backend/">
+    <Project Path="Backend/AccountOpeningTracker.Api/AccountOpeningTracker.Api.csproj" />
+    <Project Path="Backend/AccountOpeningTracker.Tests/AccountOpeningTracker.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,758 @@
+//The .http file lets us test the backend directly, without having to build the React screens first.
+@AccountOpeningTracker.Api_HostAddress = http://localhost:5285
+
+GET {{AccountOpeningTracker.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-REF-001",
+  "requestId": "TEST-REQ-001",
+  "clientName": "Test Client",
+  "panNo": "TESTPAN001",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-10T10:00:00",
+  "latestStatus": "Request Received from CSE",
+  "queryCount": 0,
+  "queryHoldDays": 0,
+  "touchCount": 0,
+  "currentStage": "Stage 1"
+}
+###
+
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "requestId": "TEST-REQ-002",
+  "clientName": "Validation Test",
+  "panNo": "TESTPAN002",
+  "inwardDate": "2026-10-10T10:00:00"
+}
+###
+
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-REF-STATUS-001",
+  "requestId": "TEST-REQ-STATUS-001",
+  "clientName": "Status Validation Test",
+  "panNo": "TESTPAN003",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-10T10:00:00",
+  "latestStatus": "Request Received from CSE",
+  "queryCount": 0,
+  "queryHoldDays": 0,
+  "touchCount": 0,
+  "currentStage": "Stage 1"
+}
+###
+
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-STAGE-002",
+  "requestId": "TEST-STAGE-002",
+  "clientName": "Stage Detection Test",
+  "panNo": "TESTPAN004",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-10T10:00:00",
+  "formPreparedDate": "2026-10-10T11:00:00",
+  "latestStatus": "Request Received from CSE",
+  "stage2Status": "Pending",
+  "currentStage": "Stage 1"
+}
+###
+
+GET https://localhost:7242/api/Accounts
+Accept: application/json
+###
+
+PUT https://localhost:7242/api/Accounts/4
+Content-Type: application/json
+
+{
+  "id": 4,
+  "referenceId": "TEST-STAGE-002",
+  "requestId": "TEST-STAGE-002",
+  "entryType": "New",
+  "clientName": "Stage Detection Test",
+  "panNo": "TESTPAN004",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-10T10:00:00",
+  "formPreparedDate": "2026-10-10T11:00:00",
+  "latestStatus": "Application Form Under Preparation",
+  "stage1Status": "Request Received from CSE",
+  "stage2Status": "Pending",
+  "stage3Status": "Pending",
+  "stage4Status": "Pending",
+  "stage5Status": "Pending",
+  "stage6Status": "Pending",
+  "queryCount": 0,
+  "queryHoldDays": 0,
+  "touchCount": 0,
+  "currentStage": "Stage 1",
+  "isCurrentStageManuallyOverridden": false
+}
+###
+
+PUT https://localhost:7242/api/Accounts/4
+Content-Type: application/json
+
+{
+  "id": 4,
+  "referenceId": "TEST-STAGE-002",
+  "requestId": "TEST-STAGE-002",
+  "entryType": "New",
+  "clientName": "Stage Detection Test",
+  "panNo": "TESTPAN004",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-10T10:00:00",
+  "formPreparedDate": "2026-10-10T11:00:00",
+  "latestStatus": "Application Form Under Preparation",
+  "stage1Status": "Request Received from CSE",
+  "stage2Status": "Pending",
+  "stage3Status": "Pending",
+  "stage4Status": "Pending",
+  "stage5Status": "Pending",
+  "stage6Status": "Pending",
+  "queryCount": 0,
+  "queryHoldDays": 0,
+  "touchCount": 0,
+  "currentStage": "Stage 4",
+  "isCurrentStageManuallyOverridden": true
+}
+###
+
+
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-RFT-001",
+  "requestId": "TEST-RFT-001",
+  "clientName": "RFT Test Client",
+  "panNo": "TESTPAN005",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-10T10:00:00",
+  "latestStatus": "Request Received from CSE",
+  "queryCount": 0,
+  "queryHoldDays": 0,
+  "touchCount": 0
+}
+###
+
+
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-NRFT-001",
+  "requestId": "TEST-NRFT-001",
+  "clientName": "NRFT Test Client",
+  "panNo": "TESTPAN006",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-10T10:00:00",
+  "stage1QueryRaisedDate": "2026-10-10T11:00:00",
+  "stage1QueryDetails": "Missing information",
+  "latestStatus": "Query Raised to CSE — Missing Information",
+  "queryCount": 1,
+  "queryHoldDays": 0,
+  "touchCount": 0
+}
+###
+
+
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-NRFT-001",
+  "requestId": "TEST-NRFT-002",
+  "clientName": "NRFT Test Client - Resubmission",
+  "panNo": "TESTPAN006",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-10T10:00:00",
+  "latestStatus": "Resubmitted by CSE",
+  "queryCount": 1,
+  "queryHoldDays": 0,
+  "touchCount": 1
+}
+
+###
+
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-TAT-001",
+  "requestId": "TEST-TAT-001",
+  "clientName": "TAT Test Client",
+  "panNo": "TESTPAN007",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-08T10:00:00",
+  "latestStatus": "Request Received from CSE",
+  "queryCount": 0,
+  "queryHoldDays": 1,
+  "touchCount": 0
+}
+###
+
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-WORKDAYS-001",
+  "requestId": "TEST-WORKDAYS-001",
+  "clientName": "Working Days Test",
+  "panNo": "TESTPAN008",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-09T10:00:00",
+  "latestStatus": "Request Received from CSE",
+  "queryCount": 0,
+  "queryHoldDays": 0,
+  "touchCount": 0
+}
+###
+
+
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-WORKDAYS-002",
+  "requestId": "TEST-WORKDAYS-002",
+  "clientName": "Completed Working Days Test",
+  "panNo": "TESTPAN009",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-09T10:00:00",
+  "accountOpeningDate": "2026-10-12T10:00:00",
+  "accountNumber": "TEST-ACC-009",
+  "latestStatus": "Account Opened",
+  "queryCount": 0,
+  "queryHoldDays": 0,
+  "touchCount": 0
+}
+
+###
+
+@baseUrl = https://localhost:7242
+
+### Get all accounts
+GET {{baseUrl}}/api/Accounts
+Accept: application/json
+
+
+### Test invalid account type - should return 400
+POST {{baseUrl}}/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-VALIDATION-001",
+  "requestId": "TEST-REQUEST-001",
+  "entryType": "New",
+  "clientName": "Test Client",
+  "panNo": "TESTPAN1234",
+  "accountType": "InvalidType",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-09T00:00:00",
+  "latestStatus": "Request Received from CSE"
+}
+
+
+### Test valid account - should return 201
+POST {{baseUrl}}/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-VALIDATION-002",
+  "requestId": "TEST-REQUEST-002",
+  "entryType": "New",
+  "clientName": "Test Client",
+  "panNo": "TESTPAN1234",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-09T00:00:00",
+  "latestStatus": "Request Received from CSE"
+}
+
+
+### Test invalid date order - should return 400
+POST {{baseUrl}}/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-VALIDATION-003",
+  "requestId": "TEST-REQUEST-003",
+  "entryType": "New",
+  "clientName": "Test Date Validation",
+  "panNo": "TESTPAN1234",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-09T00:00:00",
+  "accountOpeningDate": "2026-10-08T00:00:00",
+  "latestStatus": "Request Received from CSE"
+}
+
+
+### Test invalid account type on update - should return 400
+PUT {{baseUrl}}/api/Accounts/12
+Content-Type: application/json
+
+{
+  "entryType": "New",
+  "clientName": "Test Client",
+  "panNo": "TESTPAN1234",
+  "accountType": "InvalidType",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "latestStatus": "Request Received from CSE"
+}
+
+
+### Test RFT changes to NRFT when Stage 1 query is raised
+PUT {{baseUrl}}/api/Accounts/12
+Content-Type: application/json
+
+{
+  "entryType": "New",
+  "clientName": "Test Client",
+  "panNo": "TESTPAN1234",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-09T00:00:00",
+  "stage1QueryRaisedDate": "2026-10-10T00:00:00",
+  "stage1QueryDetails": "Missing test document",
+  "stage1Status": "Query Raised to CSE — Missing Information",
+  "latestStatus": "Query Raised to CSE — Missing Information"
+}
+
+
+### Test original inward date is preserved
+PUT {{baseUrl}}/api/Accounts/12
+Content-Type: application/json
+
+{
+  "entryType": "Resubmission",
+  "clientName": "Test Client",
+  "panNo": "TESTPAN1234",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "outwardDate": "2026-10-10T00:00:00",
+  "resubmissionDate": "2026-10-11T00:00:00",
+  "stage1QueryRaisedDate": "2026-10-10T00:00:00",
+  "stage1QueryDetails": "Missing test document",
+  "stage1ResubmissionDate": "2026-10-11T00:00:00",
+  "stage1Status": "Resubmitted by CSE",
+  "latestStatus": "Resubmitted by CSE"
+}
+
+### Verify current account TAT
+GET {{baseUrl}}/api/Accounts/12
+Accept: application/json
+
+
+### Test completed account TAT
+POST {{baseUrl}}/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-TAT-001",
+  "requestId": "TEST-TAT-REQUEST-001",
+  "entryType": "New",
+  "clientName": "TAT Test Client",
+  "panNo": "TESTPAN5678",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-09T00:00:00",
+  "accountOpeningDate": "2026-10-12T00:00:00",
+  "accountNumber": "TEST-ACCOUNT-001",
+  "latestStatus": "Account Opened",
+  "stage6Status": "Account Opened"
+}
+
+### Inspect records for TEST-TAT-001
+GET {{baseUrl}}/api/Accounts
+Accept: application/json
+
+### Recalculate TAT for test account 13
+PUT {{baseUrl}}/api/Accounts/13
+Content-Type: application/json
+
+{
+  "entryType": "New",
+  "clientName": "TAT Test Client",
+  "panNo": "TESTPAN5678",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "accountNumber": "TEST-ACCOUNT-001",
+  "accountOpeningDate": "2026-10-12T00:00:00",
+  "stage6Status": "Account Opened",
+  "latestStatus": "Account Opened"
+}
+### Check account 13
+GET {{baseUrl}}/api/Accounts/13
+Accept: application/json
+
+### Find all records with the test reference
+GET {{baseUrl}}/api/Accounts
+Accept: application/json
+
+### Verify TAT records sharing a Reference ID
+GET https://localhost:7242/api/Accounts
+Accept: application/json
+
+### Test PUT: Update account without queryCount
+PUT https://localhost:7242/api/Accounts/4
+Content-Type: application/json
+
+{
+  "id": 4,
+  "referenceId": "TEST-STAGE-002",
+  "requestId": "TEST-STAGE-002",
+  "entryType": "New",
+  "clientName": "Stage Detection Test",
+  "panNo": "TESTPAN004",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-10T10:00:00",
+  "formPreparedDate": "2026-10-10T11:00:00",
+  "latestStatus": "Application Form Under Preparation",
+  "stage1Status": "Request Received from CSE",
+  "stage2Status": "Pending",
+  "stage3Status": "Pending",
+  "stage4Status": "Pending",
+  "stage5Status": "Pending",
+  "stage6Status": "Pending",
+  "queryHoldDays": 0,
+  "touchCount": 0,
+  "isCurrentStageManuallyOverridden": false
+}
+
+### Step 3A - Create a dedicated QueryCount test record
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-QUERYCOUNT-20261011",
+  "requestId": "TEST-QUERYCOUNT-20261011-001",
+  "entryType": "New",
+  "clientName": "Query Count Preservation Test",
+  "panNo": "TESTPANQC011",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-11T00:00:00",
+  "stage1QueryRaisedDate": "2026-10-11T10:00:00",
+  "stage1QueryDetails": "Test query for count preservation",
+  "latestStatus": "Query Raised to CSE — Missing Information",
+  "queryCount": 2,
+  "queryHoldDays": 0,
+  "touchCount": 0
+}
+
+### Test: Preserve QueryCount when omitted
+PUT https://localhost:7242/api/Accounts/14
+Content-Type: application/json
+
+{
+  "id": 14,
+  "referenceId": "TEST-QUERYCOUNT-20261011",
+  "requestId": "TEST-QUERYCOUNT-20261011-001",
+  "entryType": "New",
+  "clientName": "Query Count Preservation Test",
+  "panNo": "TESTPANQC011",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-11T00:00:00",
+  "stage1QueryRaisedDate": "2026-10-11T10:00:00",
+  "stage1QueryDetails": "Test query for count preservation",
+  "latestStatus": "Query Raised to CSE — Missing Information",
+  "queryHoldDays": 0,
+  "touchCount": 0
+}
+
+
+### Step 4A - Create original record for resubmission test
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-RESUB-20261011",
+  "requestId": "TEST-RESUB-20261011-001",
+  "entryType": "New",
+  "clientName": "Resubmission Tracking Test",
+  "panNo": "TESTPANRS011",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-08T00:00:00",
+  "latestStatus": "Request Received from CSE",
+  "queryCount": 0,
+  "queryHoldDays": 0,
+  "touchCount": 0
+}
+
+
+### Step 4B - Create resubmission
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-RESUB-20261011",
+  "requestId": "TEST-RESUB-20261011-002",
+  "entryType": "Resubmission",
+  "clientName": "Resubmission Tracking Test",
+  "panNo": "TESTPANRS011",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-11T00:00:00",
+  "latestStatus": "Request Received from CSE",
+  "queryCount": 0,
+  "queryHoldDays": 0,
+  "touchCount": 0
+}
+
+
+### Step 4C - Add a qualifying query to original record
+PUT https://localhost:7242/api/Accounts/15
+Content-Type: application/json
+
+{
+  "id": 15,
+  "referenceId": "TEST-RESUB-20261011",
+  "requestId": "TEST-RESUB-20261011-001",
+  "entryType": "New",
+  "clientName": "Resubmission Tracking Test",
+  "panNo": "TESTPANRS011",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-08T00:00:00",
+  "stage1QueryRaisedDate": "2026-10-09T10:00:00",
+  "stage1QueryDetails": "Test query to verify RFT across resubmissions",
+  "latestStatus": "Query Raised to CSE — Missing Information",
+  "queryCount": 1,
+  "queryHoldDays": 0,
+  "touchCount": 0
+}
+
+
+### Check original submission
+GET https://localhost:7242/api/Accounts/15
+Accept: application/json
+
+### Check resubmission
+GET https://localhost:7242/api/Accounts/16
+Accept: application/json
+
+###
+
+PUT https://localhost:7242/api/Accounts/16
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-RESUB-20261011",
+  "requestId": "TEST-RESUB-20261011-001",
+  "entryType": "New",
+  "clientName": "Resubmission Tracking Test",
+  "panNo": "TESTPANRS011",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-08T00:00:00",
+  "stage1QueryRaisedDate": "2026-10-09T10:00:00",
+  "stage1QueryDetails": "Test query to verify RFT across resubmissions",
+  "latestStatus": "Query Raised to CSE — Missing Information",
+  "queryCount": 1,
+  "queryHoldDays": 0,
+  "touchCount": 0
+}
+###
+POST https://localhost:7242/api/Accounts
+Content-Type: application/json
+
+{
+  "referenceId": "TEST-RESUB-20261011",
+  "requestId": "TEST-RESUB-20261011-003",
+  "entryType": "Resubmission",
+  "clientName": "Resubmission Tracking Test",
+  "panNo": "TESTPANRS011",
+  "accountType": "Individual",
+  "channel": "Physical",
+  "actionBy": "Operations",
+  "location": "Mumbai",
+  "segment": "Retail",
+  "cse": "Test CSE",
+  "relationshipManager": "Test RM",
+  "processor": "Test Processor",
+  "inwardDate": "2026-10-12T00:00:00",
+  "latestStatus": "Request Received from CSE"
+}
+
+###
+
+GET https://localhost:7242/api/Accounts/15
+###
+
+GET https://localhost:7242/api/Accounts/mis
+Accept: application/json

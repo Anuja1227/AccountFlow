@@ -1,0 +1,25 @@
+# Build output
+bin/
+obj/
+dist/
+
+# Dependencies
+node_modules/
+
+# IDE / tool caches
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+.qodo/
+
+# Logs and local tooling output
+tools/logs/
+*.log
+
+# Local secrets and test credentials (never commit)
+tools/TEST-USERS.md
+appsettings.*.local.json
+.env
+.env.*
