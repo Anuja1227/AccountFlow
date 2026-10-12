@@ -154,6 +154,18 @@ Also: an **AI case briefing** on the case page and **AI MIS commentary** on the 
 
 **Provider and data:** Groq free tier, called only from the backend (OpenAI-compatible API); the key never reaches the browser. Other providers are a setting (`Ai:Provider`: Ollama, Anthropic, OpenAI, Disabled). Client name, PAN, account number, e-mails and phone numbers are redacted before the completeness check, reply review, briefing and MIS commentary. Quick fill, form fill and the document pre-check need the real text or image — use synthetic data. Only call metadata is logged (Admin → AI usage).
 
+## Future AI Enhancements
+
+### 1. AI-Powered Document Verification Copilot
+Extend the existing AI document checks to analyze an entire account-opening document set collectively. A multimodal AI model could extract and cross-verify information across application forms, PAN documents, address proofs, and other supporting documents to identify missing documents, inconsistent information, and potential discrepancies. It could also generate a verification report and draft discrepancy queries for human review.
+
+### 2. AI-Powered Case Risk & Root-Cause Intelligence
+Introduce AI-driven analysis of case history and MIS data to identify cases at risk of SLA breaches, recurring workflow bottlenecks, and common causes of delays. The system could explain the factors contributing to a case's risk and recommend appropriate follow-up actions, helping Operations prioritize pending work and management identify process improvements.
+
+**Potential technology extensions:** Multimodal AI models for document analysis, reasoning-capable language models for case intelligence, and structured integration with the existing .NET backend and SQL Server database.
+
+*These are proposed extensions and are not part of the current implementation. Any AI-generated findings or recommendations would require appropriate validation and human review.*
+
 ## 7. Demonstration script
 
 1. **Admin:** create a team, a role and users — an Operations user, a CSE user (with a *CSE name* matching the case) and a MOFSL user.
@@ -170,10 +182,6 @@ The demo cases used in the live presentation (DEMO-FORM-01, DEMO-SIGN-01, DEMO-M
 
 - In-app communication only; no e-mail, SMS or WhatsApp notifications.
 - Working days are Monday–Friday; holidays are not excluded.
-- One SLA threshold is used for overall and stage-wise SLA; the requirement gives a single default of 7 days.
-- *Touch Count* is not defined in the requirement; the app counts workflow actions on the case.
 - The signature check confirms a signature is present; it does not verify that it is genuine.
-- The vision pre-check has been tested with images; PDF uploads are rendered to images and supported, but have had less testing.
 - A CSE's case scope matches the CSE name stored on records.
-- No integrations with e-sign, KRA/PAN verification or DigiLocker.
 - The Groq free tier has rate and daily limits; when reached, AI features show a message and the workflow continues without AI.
