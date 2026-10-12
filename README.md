@@ -164,8 +164,9 @@ which requires `workflow.override` and is audited.
 
 ## 6. AI-powered automation
 
-The AI replaces three manual Operations steps: retyping the CSE's request, checking it for gaps and
-writing the query, and reading the CSE's reply to decide what happens next.
+The AI takes over five pieces of reading and drafting work: retyping the CSE's request, checking it for gaps and
+writing the query, reading the CSE's reply, filling the application form, and pre-checking the signed form that comes back.
+Every result is checked by code, and Operations confirms anything that changes the case.
 
 | # | Automation | Trigger | What happens without a person |
 |---|---|---|---|
@@ -178,8 +179,8 @@ writing the query, and reading the CSE's reply to decide what happens next.
 Also available (read-only): an **AI case briefing** on the case page and **AI MIS commentary** on the dashboard.
 
 **Modes** (Admin → Settings → *AI automation mode*):
-- **Automatic** (default for the demo): the AI acts. Its actions appear in History as *AccountFlow AI*, and query messages are tagged *AI-assisted*.
-- **Suggest only:** each check records a recommendation that Operations applies with **one click** (run with the user's own permissions).
+- **Automatic:** the AI acts. Its actions appear in History as *AccountFlow AI*, and query messages are tagged *AI-assisted*.
+- **Suggest only** (recommended for the demo): each check records a recommendation that Operations applies with **one click** (run with the user's own permissions).
 - **Off:** nothing runs automatically. Operations can still click *Run intake check* or *Review CSE reply*, which produces a suggestion.
 
 **How decisions are made:**
@@ -187,13 +188,11 @@ Also available (read-only): an **AI case briefing** on the case page and **AI MI
 2. `Workflow/AutomationPolicy.cs` (plain, unit-tested code) turns it into workflow steps using confidence thresholds: act on gaps at ≥ 0.60, move a case forward only at ≥ 0.75. Required-field gaps always trigger a query, even if the AI says the request is complete.
 3. Each step runs through the same `WorkflowEngine` validation as a human action.
 
-The AI cannot change TAT, SLA, RFT or MIS figures, skip a stage, or bypass permissions. If the AI is unavailable, the case simply waits for a person. Each run is shown on the case page under **✦ AI automation**, with its findings, confidence and what it did.
+The AI cannot change TAT, SLA, RFT or MIS figures, skip a stage, or bypass permissions. If the AI is unavailable, the case simply waits for a person. Each result appears on the case page as an **AI suggestion** in the next-action bar (with its findings and confidence), and every AI run is listed under **History → AI only**.
 
 **Provider:** [Groq](https://console.groq.com) free tier, model `openai/gpt-oss-120b` (configurable: `Ai:Groq:Model`; the status check lists the models your key can use), called from the backend through its OpenAI-compatible API. Set the key with `dotnet user-secrets set "Ai:Groq:ApiKey" "<key>"`; it never reaches the browser. Other providers are configuration-only: `Ollama`, `Anthropic`, `OpenAI` and `Disabled` (`Ai:Provider`).
 
 **Data:** for the completeness check, reply review, briefing and MIS commentary, client name, PAN, account number, e-mails, phone numbers and staff names are redacted before sending. Quick fill has to read the request text to extract the fields, so that text is sent as-is. Use synthetic data in demos. Prompts and outputs are not stored; `AiInteractionLogs` keeps metadata only (Admin → Audit → AI usage).
-
-**Planned extension (not built):** an AI document check of uploaded signed forms (vision model), which would raise Stage 3 discrepancies automatically.
 
 ---
 
