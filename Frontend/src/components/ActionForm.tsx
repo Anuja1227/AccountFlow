@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { errorMessage, post, postForm } from '../lib/api'
-import { todayIso } from '../lib/format'
+import { date, todayIso } from '../lib/format'
 import type { AvailableAction, CaseDetail, CaseQuery } from '../lib/types'
 import { Field, Modal } from './ui'
 
@@ -25,8 +25,13 @@ export function ActionForm({
     onClose: () => void
     onDone: (detail: CaseDetail, message: string) => void
 }) {
+    // Logging the account opening starts from the details MOFSL sent.
+    const fromMofsl: Record<string, string> =
+        action.code === 'record-account-opened'
+            ? { accountNumber: detail.latest.mofslAccountNumber ?? '', actionDate: detail.latest.mofslAccountOpeningDate?.slice(0, 10) ?? todayIso() }
+            : {}
     const [values, setValues] = useState<Values>(() =>
-        Object.fromEntries(action.fields.map((f) => [f.name, initial?.[f.name] ?? (f.type === 'date' ? todayIso() : '')])),
+        Object.fromEntries(action.fields.map((f) => [f.name, initial?.[f.name] ?? fromMofsl[f.name] ?? (f.type === 'date' ? todayIso() : '')])),
     )
     const [error, setError] = useState('')
     const [busy, setBusy] = useState(false)
@@ -93,7 +98,18 @@ export function ActionForm({
         <Modal title={action.label} onClose={onClose}>
             <p className="muted">{action.description}</p>
             {query && <QueryContext query={query} />}
-            {initial && <p className="ai-note">✦ Pre-filled from the AI document check. Review and edit before you confirm.</p>}
+            {action.code === 'record-account-opened' ? (
+                <div className="query-context">
+                    <div className="query-item-meta">Sent by MOFSL</div>
+                    <p>
+                        Account Number <strong>{detail.latest.mofslAccountNumber ?? '—'}</strong> · opened on <strong>{date(detail.latest.mofslAccountOpeningDate)}</strong>
+                    </p>
+                    {detail.latest.mofslAccountDetails && <p>{detail.latest.mofslAccountDetails}</p>}
+                    <p className="muted small">The fields below are filled with these details. Check them, then confirm to log them in the tracker.</p>
+                </div>
+            ) : (
+                initial && <p className="ai-note">✦ Pre-filled from the AI document check. Review and edit before you confirm.</p>
+            )}
             {action.code === 'cse-respond' && detail.automationMode !== 'Off' && (
                 <p className="ai-note">✦ After you send, AI checks whether your reply answers every point and either accepts it or sends a follow-up.</p>
             )}

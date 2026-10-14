@@ -11,6 +11,7 @@ const CLOSED = ['Communication Sent — Case Closed', 'Rejected', 'Cancelled by 
 const isOpen = (a: Account) => !a.accountOpeningDate && !CLOSED.includes(a.latestStatus)
 const FORM_SENT = ['Physical Form Submitted to CSE', 'Digital Form Sent to Client']
 const SIGNED_TO_VERIFY = ['Signed Form Received from CSE', 'Under Review — Signed Form']
+const MOFSL_STAGE = ['Submitted to MOFSL', 'Query Resolved — Resubmitted to MOFSL']
 
 type Workspace = 'Operations' | 'CSE' | 'MOFSL'
 
@@ -50,9 +51,10 @@ export function DeskPage({ workspace }: { workspace: Workspace }) {
                 { label: 'Awaiting Operations action', kind: 'cases' as const, cases: open.filter((a) => a.actionBy === WS.operations), hint: 'Cases where Operations owns the next step.' },
                 { label: 'Signed forms to verify', kind: 'cases' as const, cases: open.filter((a) => SIGNED_TO_VERIFY.includes(a.latestStatus)), hint: 'The CSE sent the signed form back. Verify it against the form that was sent.' },
                 { label: 'CSE responses to review', kind: 'queries' as const, queries: outbox('Responded'), hint: 'CSE has replied. Accept the response or follow up.' },
-                { label: 'MOFSL queries to resolve', kind: 'queries' as const, queries: inbox('Open'), hint: 'Queries MOFSL raised, recorded by Operations. Record the resolution when it is done.' },
+                { label: 'MOFSL queries to answer', kind: 'queries' as const, queries: inbox('Open'), hint: 'Queries raised by MOFSL on submitted cases.' },
                 { label: 'Waiting on CSE', kind: 'queries' as const, queries: outbox('Open'), hint: 'Queries Operations raised that CSE has not answered yet.' },
-                { label: 'With MOFSL', kind: 'cases' as const, cases: open.filter((a) => a.actionBy === WS.mofsl), hint: 'Submitted to MOFSL. When MOFSL raises a query or provides the account details, record it on the case.' },
+                { label: 'With MOFSL', kind: 'cases' as const, cases: open.filter((a) => a.actionBy === WS.mofsl), hint: 'Submitted to MOFSL. Waiting for MOFSL to send the account details or raise a query.' },
+                { label: 'Account details from MOFSL', kind: 'cases' as const, cases: open.filter((a) => MOFSL_STAGE.includes(a.latestStatus) && !!a.mofslAccountNumber), hint: 'MOFSL opened the account and sent the account number and opening date. Open the case and log them in the tracker.' },
                 { label: 'SLA breached (open)', kind: 'cases' as const, cases: open.filter((a) => a.isSlaBreached), hint: 'Open cases beyond the SLA threshold.' },
             ]
         }
@@ -66,8 +68,9 @@ export function DeskPage({ workspace }: { workspace: Workspace }) {
             ]
         }
         return [
-            { label: 'Submitted to MOFSL', kind: 'cases' as const, cases: open.filter((a) => a.actionBy === WS.mofsl), hint: 'Cases Operations submitted to MOFSL for account opening. Operations records queries and the account details in the tracker.' },
-            { label: 'Open MOFSL queries', kind: 'queries' as const, queries: outbox('Open'), hint: 'MOFSL queries recorded by Operations and not yet resolved.' },
+            { label: 'Submissions to process', kind: 'cases' as const, cases: open.filter((a) => a.actionBy === WS.mofsl), hint: 'Submitted by Operations. Once the account is opened, send the account details to Operations, or raise a query if anything needs correcting.' },
+            { label: 'Operations responses to review', kind: 'queries' as const, queries: outbox('Responded'), hint: 'Operations answered your query. Accept the response (then send the account details) or follow up.' },
+            { label: 'Open MOFSL queries', kind: 'queries' as const, queries: outbox('Open'), hint: 'Waiting on Operations.' },
             { label: 'Accounts opened', kind: 'cases' as const, cases: cases.filter((a) => !!a.accountOpeningDate), hint: 'Cases with an account number and opening date.' },
         ]
     }, [cases, queries, workspace])

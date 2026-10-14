@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { errorMessage, get, post } from '../lib/api'
 import { P, useAuth, WS } from '../lib/auth'
-import { dateTime } from '../lib/format'
-import type { AiHealth, AiInsight, AvailableAction, CaseDetail } from '../lib/types'
-import { Pill } from './ui'
+import type { AiHealth, AiInsight, AvailableAction, CaseDetail, CaseQuery } from '../lib/types'
 
 let healthCache: Promise<AiHealth> | null = null
 
@@ -341,19 +339,12 @@ export function AiSuggestionCard({
     return (
         <div className="ai-suggestion">
             <div className="ai-suggestion-body">
-                <div className="ai-suggestion-title">✦ AI suggests: {label}</div>
-                <p>{insight.summary}</p>
-                {insight.findings.length > 0 && (
-                    <ul>
-                        {insight.findings.slice(0, 4).map((f) => (
-                            <li key={f}>{f}</li>
-                        ))}
-                    </ul>
-                )}
-                <div className="muted small">
-                    {KIND_LABEL[insight.kind] ?? insight.kind}
-                    {insight.queryId ? ` · query #${insight.queryId}` : ''}
-                    {showConfidence(insight) ? ` · confidence ${Math.round(insight.confidence * 100)}%` : ''} · {dateTime(insight.createdAt)}
+                <div className={`ai-suggestion-title tone-${OUTCOME_TONE[insight.outcome] ?? 'neutral'}`}>
+                    ✦ {CHECK_TITLE[insight.kind] ?? 'AI check'}: <span className="ai-line-result">{checkHeadline(insight)}</span>
+                </div>
+                <div className="ai-line-sub">
+                    Suggested next step: <strong>{label}</strong>
+                    {insight.queryId ? ` · query #${insight.queryId}` : ''} · {shortWhen(insight.createdAt)}
                 </div>
                 {error && <div className="error-banner">{error}</div>}
             </div>
@@ -380,28 +371,125 @@ export function AiSuggestionCard({
     )
 }
 
-/** Compact one-run summary (Overview, query threads). */
-export function AiInsightNote({ insight }: { insight: AiInsight }) {
+const CHECK_TITLE: Record<string, string> = {
+    IntakeCheck: 'AI check',
+    ResponseReview: 'AI reply check',
+    DocumentCheck: 'AI form check',
+}
+
+/** The result in a few words, e.g. "Segment missing" or "All details present". */
+// eslint-disable-next-line react-refresh/only-export-components
+export function checkHeadline(i: AiInsight): string {
+    const items = i.findings.slice(0, 3).join(', ') + (i.findings.length > 3 ? ` +${i.findings.length - 3} more` : '')
+    switch (i.outcome) {
+        case 'Incomplete':
+            return i.findings.length > 0 ? `${items} missing` : 'Information missing'
+        case 'Complete':
+            return 'All details present'
+        case 'Resolved':
+            return 'Reply answers the query'
+        case 'NotResolved':
+            return 'Reply does not answer everything'
+        case 'IssuesFound':
+            return `${i.findings.length || 'Some'} issue${i.findings.length === 1 ? '' : 's'} found`
+        case 'NoIssuesFound':
+            return 'No issues found'
+        default:
+            return OUTCOME_LABEL[i.outcome] ?? i.outcome
+    }
+}
+
+/** The Stage 1 query raised from an intake check (the newest one raised on or after it). */
+// eslint-disable-next-line react-refresh/only-export-components
+export function intakeQuery(insight: AiInsight, queries: CaseQuery[]): CaseQuery | null {
+    if (insight.kind !== 'IntakeCheck' || insight.outcome !== 'Incomplete') return null
+    const from = insight.createdAt.slice(0, 10)
+    const raised = queries.filter((q) => q.queryType === 'MissingInformation' && q.raisedAt.slice(0, 10) >= from)
+    return raised.length === 0 ? null : raised.reduce((x, y) => (y.id > x.id ? y : x))
+}
+
+/** "14 Oct, 3:12 am" (or "14 Oct" for a date without a time). */
+function shortWhen(value: string, withTime = true): string {
+    // Server timestamps are UTC without a suffix; a plain date stays as it is.
+    const d = new Date(withTime && !/[zZ]|[+-]\d\d:\d\d$/.test(value) ? `${value}Z` : value)
+    if (Number.isNaN(d.getTime())) return value
+    const day = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    return withTime ? `${day}, ${d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }).toLowerCase()}` : day
+}
+
+/** What happened after the check, in plain words. */
+function nextStep(i: AiInsight): string | null {
+    if (i.actionStatus === 'Pending') return 'Suggestion waiting for Operations to review'
+    const r = i.actionResult ?? ''
+    const plain = (label: string) =>
+        /raise query to cse/i.test(label) ? 'Query sent to CSE' : /prepare form/i.test(label) ? 'Moved to form preparation' : label
+    let m = r.match(/^Reviewed and sent by (.+?): (.+)$/)
+    if (m) return `${plain(m[2])} by ${m[1]}`
+    m = r.match(/^Applied: (.+)$/)
+    if (m) return `${plain(m[1].split(' → ').pop() ?? m[1])}${i.appliedByName ? ` by ${i.appliedByName}` : ''}`
+    m = r.match(/^AI did: (.+)$/)
+    if (m) return `${plain(m[1].split(' → ').pop() ?? m[1])} by AI`
+    return r || null
+}
+
+/**
+ * One AI result (Overview, query threads), as option A: the result as the title, one line
+ * on what happened next, and small "Check again" / "Details" links on the right.
+ */
+export function AiInsightNote({ insight, action, query }: { insight: AiInsight; action?: ReactNode; query?: CaseQuery | null }) {
+    const [open, setOpen] = useState(false)
+    const resolved = query?.status === 'Resolved'
+    const tone = resolved ? 'success' : OUTCOME_TONE[insight.outcome] ?? 'neutral'
+    const sub = resolved
+        ? `Query #${query!.id} answered by CSE and accepted · ${shortWhen(query!.resolvedAt ?? insight.createdAt, false)}`
+        : `${nextStep(insight) ? `${nextStep(insight)} · ` : ''}${shortWhen(insight.createdAt)}`
+
+    // Details add what the card does not already say.
+    const asked = query?.messages.find((m) => m.messageType === 'Query')
+    const replied = query ? [...query.messages].reverse().find((m) => m.messageType === 'Response') : undefined
+    const showFindings = !query && (insight.kind !== 'IntakeCheck' || insight.findings.length > 3)
+
     return (
-        <div className="ai-note-box">
-            <div className="ai-note-head">
-                <strong>✦ {KIND_LABEL[insight.kind] ?? insight.kind}</strong>
-                <Pill tone={OUTCOME_TONE[insight.outcome] ?? 'neutral'}>{OUTCOME_LABEL[insight.outcome] ?? insight.outcome}</Pill>
-                <span className="muted small">{dateTime(insight.createdAt)}</span>
+        <div className={`ai-line ${tone}`}>
+            <div className="ai-line-main">
+                <div className="ai-line-title">
+                    ✦ {CHECK_TITLE[insight.kind] ?? 'AI check'}: <span className="ai-line-result">{checkHeadline(insight)}{resolved ? ' → resolved' : ''}</span>
+                </div>
+                <div className="ai-line-sub">{sub}</div>
             </div>
-            <p className="small">{insight.summary}</p>
-            {insight.findings.length > 0 && (
-                <ul className="small">
-                    {insight.findings.slice(0, 4).map((f) => (
-                        <li key={f}>{f}</li>
-                    ))}
-                </ul>
-            )}
-            {insight.actionResult && insight.actionStatus !== 'Pending' && (
-                <p className="muted small">
-                    {insight.actionStatus === 'Applied' ? '✓ ' : ''}
-                    {insight.actionResult}
-                </p>
+            <div className="ai-line-links">
+                {action}
+                <button type="button" className="ai-line-link" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+                    Details {open ? '▴' : '▾'}
+                </button>
+            </div>
+            {open && (
+                <div className="ai-line-details">
+                    {query ? (
+                        <>
+                            {asked && (
+                                <p>
+                                    <span className="muted">Operations asked:</span> {asked.body}
+                                </p>
+                            )}
+                            <p>
+                                <span className="muted">CSE replied:</span> {replied ? replied.body : 'No reply yet.'}
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <p>{insight.summary}</p>
+                            {showFindings && insight.findings.length > 0 && (
+                                <ul>
+                                    {insight.findings.map((f) => (
+                                        <li key={f}>{f}</li>
+                                    ))}
+                                </ul>
+                            )}
+                        </>
+                    )}
+                    <p className="muted">AI ran {shortWhen(insight.createdAt)}</p>
+                </div>
             )}
         </div>
     )

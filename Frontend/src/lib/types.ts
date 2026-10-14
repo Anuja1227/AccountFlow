@@ -53,6 +53,9 @@ export type Account = {
     mofslQueryResolvedDate: string | null
     stage5Status: string
     accountNumber: string | null
+    mofslAccountNumber: string | null
+    mofslAccountOpeningDate: string | null
+    mofslAccountDetails: string | null
     accountOpeningDate: string | null
     stage6Status: string
     communicationSentDate: string | null

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { ActionForm } from '../components/ActionForm'
-import { AiInsightNote, AiSuggestionCard, CaseSummaryPanel, currentSuggestion, KIND_LABEL, OUTCOME_LABEL, OUTCOME_TONE, showConfidence, useAiHealth } from '../components/AiPanels'
+import { AiInsightNote, AiSuggestionCard, CaseSummaryPanel, checkHeadline, currentSuggestion, intakeQuery, KIND_LABEL, OUTCOME_LABEL, OUTCOME_TONE, useAiHealth } from '../components/AiPanels'
 import { ApplicationFormPanel, SignedFormPanel } from '../components/ApplicationFormPanel'
-import { Empty, ErrorBanner, Field, KeyValue, Loading, Modal, PageHeader, Pill, StatusPill, SuccessBanner } from '../components/ui'
+import { Empty, ErrorBanner, Field, KeyValue, Loading, Modal, PageHeader, Pill, StatusDot, StatusPill, SuccessBanner } from '../components/ui'
 import { ApiError, errorMessage, get, post, put } from '../lib/api'
 import { useAuth, WS } from '../lib/auth'
 import { date, dateTime, number } from '../lib/format'
@@ -155,12 +155,11 @@ export function CaseDetailPage({ referenceId }: { referenceId: string }) {
 
             <section className="panel next-action-bar" aria-label="Next action">
                 <div className="case-status-bar">
-                    <StatusPill status={a.latestStatus} />
+                    <StatusDot status={a.latestStatus} />
+                    <span className="bar-sep" aria-hidden="true">|</span>
                     <span>
                         Next action by <strong>{a.actionBy}</strong>
                     </span>
-                    <Pill tone={a.rftStatus === 'RFT' ? 'success' : 'warning'}>{a.rftStatus}</Pill>
-                    <Pill tone={a.isSlaBreached ? 'danger' : 'success'}>{a.isSlaBreached ? 'SLA breached' : 'Within SLA'}</Pill>
                 </div>
                 {detail.availableActions.length === 0 ? (
                     <p className="muted small">No actions available to you right now. {a.actionBy !== '' && `Waiting on ${a.actionBy}.`}</p>
@@ -186,6 +185,7 @@ export function CaseDetailPage({ referenceId }: { referenceId: string }) {
                         )}
                     </div>
                 )}
+                <IntakeHint detail={detail} suggestion={suggestion} onChanged={(message) => refresh(message)} />
                 {suggestion && (
                     <AiSuggestionCard
                         detail={detail}
@@ -205,7 +205,7 @@ export function CaseDetailPage({ referenceId }: { referenceId: string }) {
             </div>
 
             <div role="tabpanel" className="case-tab-panel">
-                {tab === 'overview' && <OverviewTab detail={detail} version={version} onOpenTab={setTab} onChanged={refresh} />}
+                {tab === 'overview' && <OverviewTab detail={detail} version={version} onOpenTab={setTab} />}
                 {tab === 'form' && <ApplicationFormPanel detail={detail} onChanged={(updated, message) => { setDetail(updated); setNotice(message); setVersion((v) => v + 1) }} />}
                 {tab === 'documents' && (
                     <>
@@ -266,32 +266,70 @@ export function CaseDetailPage({ referenceId }: { referenceId: string }) {
     )
 }
 
-// ------------------------------------------------------------------ Tabs
-
-function OverviewTab({ detail, version, onOpenTab, onChanged }: { detail: CaseDetail; version: number; onOpenTab: (t: TabKey) => void; onChanged: (message?: string) => void }) {
-    const a = detail.latest
-    const last = detail.history[0]
-    const open = detail.queries.filter((q) => q.status !== 'Resolved')
-    const intake = detail.aiInsights.find((i) => i.kind === 'IntakeCheck')
+/**
+ * Stage 1: one line under the action bar with the AI's check of the request, next to the
+ * button Operations would use. Hidden once the resulting query is resolved (History keeps it).
+ */
+function IntakeHint({ detail, suggestion, onChanged }: { detail: CaseDetail; suggestion: AiInsight | null; onChanged: (message: string) => void }) {
     const { inWorkspace, can } = useAuth()
     const ai = useAiHealth()
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState('')
-    const intakeStage = ['Request Received from CSE', 'Under Review by Operations'].includes(a.latestStatus)
-    const canRunIntake = intakeStage && inWorkspace(WS.operations) && can('workflow.operations') && ai.allowed
+    const status = detail.latest.latestStatus
+    const intake = detail.aiInsights.find((i) => i.kind === 'IntakeCheck') ?? null
+    const isOps = inWorkspace(WS.operations) && can('workflow.operations')
+    const stage1 = STAGE1_STATUSES.includes(status)
+    const canRun = isOps && ai.allowed && ['Request Received from CSE', 'Under Review by Operations'].includes(status)
+    const query = intake ? intakeQuery(intake, detail.queries) : null
 
-    async function runIntake() {
+    if (!isOps || !stage1) return null
+    if (intake && suggestion?.id === intake.id) return null // the suggestion card already shows it
+    if (query?.status === 'Resolved') return null
+    if (!intake && !canRun) return null
+
+    async function run() {
         setBusy(true)
         setError('')
         try {
             await post(`/ai/cases/${encodeURIComponent(detail.referenceId)}/intake-check`)
-            onChanged('AI intake check finished.')
+            onChanged('AI check of the request finished.')
         } catch (err) {
             setError(errorMessage(err))
         } finally {
             setBusy(false)
         }
     }
+
+    const tone = intake ? OUTCOME_TONE[intake.outcome] ?? 'neutral' : 'neutral'
+    const runLink = canRun && (
+        <button type="button" className="ai-line-link" disabled={busy || !ai.ready} onClick={() => void run()}>
+            {busy ? 'Checking…' : intake ? 'Check again' : 'Run check'}
+        </button>
+    )
+    return (
+        <div className="intake-hint">
+            {intake ? (
+                <>
+                    ✦ AI checked the request: <strong className={`hint-${tone}`}>{checkHeadline(intake)}</strong>
+                    {query && ` · query #${query.id} sent to CSE`}
+                </>
+            ) : (
+                <>✦ AI can check this request for missing details</>
+            )}
+            {runLink && <> · {runLink}</>}
+            {error && <div className="error-banner">{error}</div>}
+        </div>
+    )
+}
+
+const STAGE1_STATUSES = ['Request Received from CSE', 'Under Review by Operations', 'Query Raised to CSE — Missing Information', 'Resubmitted by CSE']
+
+// ------------------------------------------------------------------ Tabs
+
+function OverviewTab({ detail, version, onOpenTab }: { detail: CaseDetail; version: number; onOpenTab: (t: TabKey) => void }) {
+    const a = detail.latest
+    const last = detail.history[0]
+    const open = detail.queries.filter((q) => q.status !== 'Resolved')
 
     return (
         <div className="overview-grid">
@@ -332,17 +370,6 @@ function OverviewTab({ detail, version, onOpenTab, onChanged }: { detail: CaseDe
                                     </div>
                                 )
                             })}
-                        </div>
-                    )}
-                    {(intake || canRunIntake) && (
-                        <div className="overview-ai">
-                            {intake && <AiInsightNote insight={intake} />}
-                            {canRunIntake && (
-                                <button type="button" className="ai-button" disabled={busy || !ai.ready} onClick={() => void runIntake()}>
-                                    {busy ? 'Checking…' : intake ? 'Run intake check again' : '✦ Run AI intake check'}
-                                </button>
-                            )}
-                            {error && <div className="error-banner">{error}</div>}
                         </div>
                     )}
                 </section>
@@ -682,10 +709,7 @@ function HistoryTab({ detail }: { detail: CaseDetail }) {
                     </div>
                     <div className="small">
                         <Pill tone={OUTCOME_TONE[i.outcome] ?? 'neutral'}>{OUTCOME_LABEL[i.outcome] ?? i.outcome}</Pill>{' '}
-                        {showConfidence(i) && <span className="muted">confidence {Math.round(i.confidence * 100)}% · </span>}
-                        <span className="muted">
-                            {i.provider} · {i.model} · mode {i.mode}
-                        </span>
+                        <span className="muted">mode {i.mode}</span>
                     </div>
                     <div className="small">{i.summary}</div>
                     {i.findings.length > 0 && (
@@ -770,6 +794,9 @@ function StageDates({ a }: { a: Account }) {
             ['Stage status', a.stage5Status],
         ]],
         ['Stage 6 — Account Opened & Communication', [
+            ['Account Number sent by MOFSL', a.mofslAccountNumber ?? '—'],
+            ['Account Opening Date sent by MOFSL', date(a.mofslAccountOpeningDate)],
+            ...(a.mofslAccountDetails ? [['Note from MOFSL', a.mofslAccountDetails] as [string, string]] : []),
             ['Account Number', a.accountNumber ?? '—'],
             ['Account Opening Date', date(a.accountOpeningDate)],
             ['Communication Sent Date', date(a.communicationSentDate)],

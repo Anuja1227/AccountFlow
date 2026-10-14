@@ -70,6 +70,13 @@ public class Account
     public DateTime? AccountOpeningDate { get; set; }
     public string Stage6Status { get; set; } = "Pending";
 
+    // "MOFSL team provide the details of accounts opened": what MOFSL sent with
+    // "Send account details to Operations". Operations then logs them in the tracker
+    // (AccountNumber / AccountOpeningDate above).
+    public string? MofslAccountNumber { get; set; }
+    public DateTime? MofslAccountOpeningDate { get; set; }
+    public string? MofslAccountDetails { get; set; } // optional note from MOFSL
+
     // Date the account-opening communication was sent and the case closed
     // ("Communication Sent — Case Closed"); ends the Stage 6 TAT.
     public DateTime? CommunicationSentDate { get; set; }

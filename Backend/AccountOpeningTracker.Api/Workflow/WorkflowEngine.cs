@@ -34,8 +34,10 @@ public static class ActionCodes
     public const string CseRespond = "cse-respond";
     public const string CseSendSignedForm = "cse-send-signed-form";
     // MOFSL
-    // Stage 5 and 6 are recorded by Operations from the details MOFSL provides.
+    public const string MofslSendAccountDetails = "mofsl-send-account-details";
     public const string MofslRaiseQuery = "mofsl-raise-query";
+    public const string MofslAcceptResponse = "mofsl-accept-response";
+    public const string MofslFollowUp = "mofsl-follow-up";
     public const string RecordAccountOpened = "record-account-opened";
 }
 
@@ -182,27 +184,12 @@ public static class WorkflowEngine
         new(ActionCodes.SubmitToMofsl, "Submit to MOFSL", WorkspaceTypes.Operations, Permissions.WorkflowOperations,
             "Submit the completed case to MOFSL for account opening.", false, null, "primary",
             new[] { DateField }),
-        new(ActionCodes.MofslRaiseQuery, "Record query raised by MOFSL", WorkspaceTypes.Operations, Permissions.WorkflowOperations,
-            "MOFSL raised a query on this submission. Record the date, query type and details.", false, null, "warning",
-            new[]
-            {
-                new ActionField("mofslQueryType", "MOFSL Query Type", "text", true, Help: "Short label, e.g. KYC mismatch"),
-                Text("details", "Query details from MOFSL"),
-                new ActionField("actionDate", "MOFSL Query Raised Date", "date", false, Help: "Defaults to today.")
-            }),
-        new(ActionCodes.OpsRespondMofsl, "Record MOFSL query resolution", WorkspaceTypes.Operations, Permissions.WorkflowOperations,
-            "Record how the MOFSL query was resolved and the resubmission to MOFSL.", true, null, "primary",
+        new(ActionCodes.OpsRespondMofsl, "Respond to MOFSL query", WorkspaceTypes.Operations, Permissions.WorkflowOperations,
+            "Resolve the MOFSL query and resubmit to MOFSL.", true, null, "primary",
             new[]
             {
                 Text("details", "Resolution details"),
                 new ActionField("actionDate", "MOFSL Query Resolved Date", "date", false, Help: "Defaults to today.")
-            }),
-        new(ActionCodes.RecordAccountOpened, "Record account opened", WorkspaceTypes.Operations, Permissions.WorkflowOperations,
-            "Record the account number and opening date provided by MOFSL. Marks the case as Account Opened.", false, null, "success",
-            new[]
-            {
-                new ActionField("accountNumber", "Account Number", "text", true),
-                new ActionField("actionDate", "Account Opening Date", "date", false, Help: "Defaults to today.")
             }),
         new(ActionCodes.SendCommunication, "Send communication & close case", WorkspaceTypes.Operations, Permissions.WorkflowOperations,
             "Record that the account-opening communication was sent. Closes the case.", false, null, "success",
@@ -231,6 +218,37 @@ public static class WorkflowEngine
                 Files("Signed form and supporting documents", true),
                 new ActionField("details", "Note to Operations (optional)", "textarea", false),
                 new ActionField("actionDate", "Date received from client", "date", false, Help: "Defaults to today.")
+            }),
+
+        // ---------- MOFSL ----------
+        new(ActionCodes.MofslSendAccountDetails, "✓ Account opened — send details to Operations", WorkspaceTypes.Mofsl, Permissions.WorkflowMofsl,
+            "The account is opened. Send the account number and opening date; Operations logs them in the tracker.", false, null, "success",
+            new[]
+            {
+                new ActionField("accountNumber", "Account Number", "text", true),
+                new ActionField("actionDate", "Account Opening Date", "date", false, Help: "Defaults to today."),
+                new ActionField("details", "Note to Operations (optional)", "textarea", false)
+            }),
+        new(ActionCodes.MofslRaiseQuery, "Raise MOFSL query", WorkspaceTypes.Mofsl, Permissions.WorkflowMofsl,
+            "Raise a query to Operations about this submission.", false, QueryTypes.MofslQuery, "warning",
+            new[]
+            {
+                new ActionField("mofslQueryType", "MOFSL Query Type", "text", true, Help: "Short label, e.g. KYC mismatch"),
+                Text("details", "Query details"),
+                new ActionField("actionDate", "MOFSL Query Raised Date", "date", false, Help: "Defaults to today.")
+            }),
+        new(ActionCodes.MofslAcceptResponse, "Accept Operations response", WorkspaceTypes.Mofsl, Permissions.WorkflowMofsl,
+            "The Operations response resolves the MOFSL query. Send the account details once the account is opened.", true, null, "success",
+            new[] { new ActionField("details", "Note (optional)", "textarea", false) }),
+        new(ActionCodes.MofslFollowUp, "Still pending — follow up", WorkspaceTypes.Mofsl, Permissions.WorkflowMofsl,
+            "The response does not resolve the MOFSL query. Reopen it.", true, null, "warning",
+            new[] { Text("details", "Follow-up message"), DateField }),
+        new(ActionCodes.RecordAccountOpened, "Log account details in tracker", WorkspaceTypes.Operations, Permissions.WorkflowOperations,
+            "Log the account number and opening date MOFSL sent. Marks the case as Account Opened.", false, null, "success",
+            new[]
+            {
+                new ActionField("accountNumber", "Account Number", "text", true),
+                new ActionField("actionDate", "Account Opening Date", "date", false, Help: "Defaults to today.")
             }),
     };
 
@@ -374,15 +392,30 @@ public static class WorkflowEngine
                     _ => "Unsupported query type."
                 };
 
+            case ActionCodes.MofslSendAccountDetails:
             case ActionCodes.MofslRaiseQuery:
                 if (!StatusIn(S.SubmittedToMofsl, S.MofslQueryResolved)) return NotFrom(status);
-                return ctx.Queries.Any(q => q.QueryType == QueryTypes.MofslQuery && q.Status == QueryStatuses.Open)
-                    ? "A MOFSL query is already open." : null;
+                // Once MOFSL has accepted the resolution of its query there are no further
+                // queries: only "Account opened" remains. (Still-open points use "Still pending".)
+                if (code == ActionCodes.MofslRaiseQuery && status == S.MofslQueryResolved)
+                    return "MOFSL accepted the query resolution; use \"Still pending — follow up\" before accepting if something is still open.";
+                if (latest.ActionBy != WorkspaceTypes.Mofsl) return "MOFSL has already sent the account details.";
+                // Only once every MOFSL query has been tracked through to resolution.
+                return ctx.Queries.Any(q => q.QueryType == QueryTypes.MofslQuery && Unresolved(q))
+                    ? "Review the Operations response to the open MOFSL query first." : null;
+
+            case ActionCodes.MofslAcceptResponse:
+            case ActionCodes.MofslFollowUp:
+                if (query!.QueryType != QueryTypes.MofslQuery || query.Status != QueryStatuses.Responded)
+                    return "Only a MOFSL query that Operations has responded to can be reviewed.";
+                return StatusIn(S.MofslQueryResolved) ? null : NotFrom(status);
 
             case ActionCodes.RecordAccountOpened:
                 if (!StatusIn(S.SubmittedToMofsl, S.MofslQueryResolved)) return NotFrom(status);
-                return ctx.Queries.Any(q => q.QueryType == QueryTypes.MofslQuery && q.Status == QueryStatuses.Open)
-                    ? "An open MOFSL query must be resolved first." : null;
+                if (ctx.Queries.Any(q => q.QueryType == QueryTypes.MofslQuery && Unresolved(q)))
+                    return "The MOFSL query must be resolved first.";
+                return string.IsNullOrWhiteSpace(latest.MofslAccountNumber)
+                    ? "Waiting for MOFSL to send the account details." : null;
         }
 
         return $"Action '{code}' is not supported.";
@@ -428,7 +461,7 @@ public static class WorkflowEngine
             a.UpdatedAt = now;
         }
 
-        CaseQuery Raise(string type, string? category, string toTeam, string? fromTeam = null)
+        CaseQuery Raise(string type, string? category, string toTeam)
         {
             var q = new CaseQuery
             {
@@ -438,7 +471,7 @@ public static class WorkflowEngine
                 Stage = QueryTypes.StageOf(type),
                 QueryType = type,
                 Category = category,
-                FromTeam = fromTeam ?? actor.Team,
+                FromTeam = actor.Team,
                 ToTeam = toTeam,
                 Status = QueryStatuses.Open,
                 RaisedByUserId = actor.UserId,
@@ -628,14 +661,10 @@ public static class WorkflowEngine
                 int hold = CloseHoldCycle(query!);
                 query!.Messages.Add(Message(MessageTypes.Response, details));
                 latest.QueryHoldDays += hold;
-                // Operations records the resolution, so the query is closed here.
-                query.Status = QueryStatuses.Resolved;
-                query.ResolvedAt = date;
-                query.ResolvedByUserId = actor.UserId;
                 latest.MofslQueryResolvedDate = date;
                 SetStatus(latest, S.MofslQueryResolved, WorkspaceTypes.Mofsl);
                 latest.Stage5Status = S.MofslQueryResolved;
-                audit = "Recorded MOFSL query resolution";
+                audit = "Responded to MOFSL query";
                 auditDetails = $"Hold days added: {hold}";
                 break;
             }
@@ -719,15 +748,39 @@ public static class WorkflowEngine
             }
 
             case ActionCodes.MofslRaiseQuery:
-                // Raised by MOFSL; Operations records it in the tracker.
-                newQuery = Raise(QueryTypes.MofslQuery, input.MofslQueryType!.Trim(), WorkspaceTypes.Operations, WorkspaceTypes.Mofsl);
+                newQuery = Raise(QueryTypes.MofslQuery, input.MofslQueryType!.Trim(), WorkspaceTypes.Operations);
                 latest.MofslQueryRaisedDate ??= date;
                 latest.MofslQueryType = input.MofslQueryType.Trim();
                 latest.MofslQueryResolvedDate = null;
                 SetStatus(latest, S.QueryRaisedByMofsl, WorkspaceTypes.Operations);
                 latest.Stage5Status = S.QueryRaisedByMofsl;
-                audit = "Recorded query raised by MOFSL";
+                audit = "MOFSL raised a query";
                 auditDetails = $"Type: {latest.MofslQueryType}";
+                break;
+
+            case ActionCodes.MofslSendAccountDetails:
+                // Status stays within the requirement's list until Operations logs the
+                // account as opened; the next step moves to Operations.
+                latest.MofslAccountNumber = input.AccountNumber!.Trim();
+                latest.MofslAccountOpeningDate = date;
+                latest.MofslAccountDetails = details.Length > 0 ? details : null;
+                SetStatus(latest, latest.LatestStatus, WorkspaceTypes.Operations);
+                latest.Stage5Status = "Account details sent by MOFSL";
+                audit = "MOFSL sent the account details";
+                auditDetails = $"Account opened {date:dd-MMM-yyyy}";
+                break;
+
+            case ActionCodes.MofslAcceptResponse:
+                Resolve(query!);
+                audit = "MOFSL accepted the query resolution";
+                break;
+
+            case ActionCodes.MofslFollowUp:
+                Reopen(query!);
+                latest.MofslQueryResolvedDate = null;
+                SetStatus(latest, S.QueryRaisedByMofsl, WorkspaceTypes.Operations);
+                latest.Stage5Status = S.QueryRaisedByMofsl;
+                audit = "MOFSL followed up on its query (still pending)";
                 break;
 
             case ActionCodes.RecordAccountOpened:
@@ -811,7 +864,7 @@ public static class WorkflowEngine
         if (def.Code == ActionCodes.MofslRaiseQuery && input.MofslQueryType!.Trim().Length > 100)
             return "MOFSL query type must be at most 100 characters.";
 
-        if (def.Code == ActionCodes.RecordAccountOpened)
+        if (def.Code is ActionCodes.RecordAccountOpened or ActionCodes.MofslSendAccountDetails)
         {
             if (!AccountNumberPattern.IsMatch(input.AccountNumber!.Trim()))
                 return "Account number must be 4–30 letters, digits, '-' or '/'.";

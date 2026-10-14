@@ -38,6 +38,11 @@ export function StatusPill({ status }: { status: string }) {
     return <span className={`status-pill ${toneForStatus(status)}`}>{status}</span>
 }
 
+/** Status as plain text with a coloured dot, so it never looks like a button. */
+export function StatusDot({ status }: { status: string }) {
+    return <span className={`status-dot ${toneForStatus(status)}`}>{status}</span>
+}
+
 export function Pill({ tone = 'neutral', children }: { tone?: string; children: ReactNode }) {
     return <span className={`status-pill ${tone}`}>{children}</span>
 }

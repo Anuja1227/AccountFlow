@@ -48,7 +48,7 @@ public static class Permissions
 
         new(WorkflowOperations, "Workflow", "Perform Operations workflow actions (review, queries, forms, MOFSL submission)"),
         new(WorkflowCse, "Workflow", "Respond to Operations queries and submit resolutions as CSE"),
-        new(WorkflowMofsl, "Workflow", "Reserved for MOFSL-side steps (none at present: Operations records MOFSL queries and account openings)"),
+        new(WorkflowMofsl, "Workflow", "Raise MOFSL queries and review Operations responses"),
         new(WorkflowOverride, "Workflow", "Correct workflow fields directly, bypassing the state machine (audited)"),
 
         new(ReportsView, "Reports", "View MIS dashboards and reports"),
@@ -93,9 +93,10 @@ public static class DefaultRoles
             Permissions.CasesViewAssigned, Permissions.CasesViewSensitive,
             Permissions.CasesSubmit, Permissions.WorkflowCse, Permissions.AiUse
         }),
-        (MofslProcessor, "Views cases submitted to MOFSL. Operations records MOFSL queries and account openings in the tracker.", new[]
+        (MofslProcessor, "Reviews MOFSL submissions, raises MOFSL queries and reviews Operations responses.", new[]
         {
-            Permissions.CasesViewMofsl, Permissions.CasesViewSensitive, Permissions.AiUse
+            Permissions.CasesViewMofsl, Permissions.CasesViewSensitive,
+            Permissions.WorkflowMofsl, Permissions.AiUse
         }),
         (MisAnalyst, "Read-only reporting. Client identifiers are masked.", new[]
         {

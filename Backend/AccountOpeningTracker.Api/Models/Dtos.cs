@@ -38,6 +38,8 @@ public sealed class AccountDto : Account
             dto.QueryDetails = Redact(source.QueryDetails, source);
             dto.Stage1QueryDetails = Redact(source.Stage1QueryDetails, source);
             dto.Remarks = Redact(source.Remarks, source);
+            dto.MofslAccountNumber = SensitiveData.MaskAccountNumber(source.MofslAccountNumber);
+            dto.MofslAccountDetails = Redact(source.MofslAccountDetails, source);
         }
         return dto;
     }

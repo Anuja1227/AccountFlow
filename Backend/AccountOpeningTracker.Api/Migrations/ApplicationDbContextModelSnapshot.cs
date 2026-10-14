@@ -111,6 +111,15 @@ namespace AccountOpeningTracker.Api.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("MofslAccountDetails")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MofslAccountNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("MofslAccountOpeningDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("MofslQueryRaisedDate")
                         .HasColumnType("datetime2");
 
