@@ -76,7 +76,8 @@ public sealed class AiAutomationService
         return await ExecuteOrSuggestAsync(insight, plan, referenceId, ct);
     }
 
-    public async Task<AiCaseInsight?> RunResponseReviewAsync(string referenceId, int queryId, int triggeredByUserId, bool manual, CancellationToken ct)
+    public async Task<AiCaseInsight?> RunResponseReviewAsync(string referenceId, int queryId, int triggeredByUserId, bool manual, CancellationToken ct,
+        bool documentsAttached = false)
     {
         var mode = await EffectiveModeAsync(manual);
         if (mode == null) return null;
@@ -84,6 +85,13 @@ public sealed class AiAutomationService
         var query = await _db.CaseQueries.AsNoTracking().Include(q => q.Messages)
             .FirstOrDefaultAsync(q => q.Id == queryId && q.ReferenceId == referenceId, ct);
         if (query == null || query.ToTeam != WorkspaceTypes.Cse || query.Status != QueryStatuses.Responded) return null;
+
+        // A Stage 3 correction sent with documents is judged on the documents (the AI
+        // pre-check), not on the reply text. Otherwise, in Automatic mode, a short reply
+        // ("corrected form attached") could trigger a follow-up before the new documents
+        // are checked, and the corrected form would never be re-checked.
+        if (!manual && documentsAttached && query.QueryType is QueryTypes.Discrepancy or QueryTypes.FormReturned)
+            return null;
 
         var records = await _db.Accounts.AsNoTracking().Where(a => a.ReferenceId == referenceId).ToListAsync(ct);
         if (records.Count == 0) return null;
@@ -124,6 +132,19 @@ public sealed class AiAutomationService
     public const long MaxImageBytes = 3 * 1024 * 1024;
 
     /// <summary>
+    /// The files of the most recent upload: same workflow action (purpose and query) and saved
+    /// together. Earlier uploads, e.g. the first signed form before a corrected one, are left out.
+    /// </summary>
+    public static List<CaseDocument> LatestUpload(IReadOnlyCollection<CaseDocument> docs)
+    {
+        if (docs.Count == 0) return new();
+        var newest = docs.OrderByDescending(d => d.UploadedAt).ThenByDescending(d => d.Id).First();
+        return docs.Where(d => d.Purpose == newest.Purpose && d.QueryId == newest.QueryId &&
+                               d.UploadedAt >= newest.UploadedAt.AddSeconds(-30))
+                   .OrderBy(d => d.Id).ToList();
+    }
+
+    /// <summary>
     /// AI pre-check of the signed form / documents the CSE sent back (Stage 3).
     /// Never acts on its own, whatever the mode: it records what it found and a
     /// drafted discrepancy that Operations can use, edit or ignore.
@@ -142,18 +163,16 @@ public sealed class AiAutomationService
             return null;
         }
 
-        // The batch sent most recently (one upload = one workflow action).
+        // Only the files sent with the most recent upload (one upload = one workflow action).
         var all = await _db.CaseDocuments.AsNoTracking().Where(d => d.ReferenceId == referenceId)
-            .OrderByDescending(d => d.UploadedAt)
-            .Select(d => new CaseDocument { Id = d.Id, FileName = d.FileName, ContentType = d.ContentType, SizeBytes = d.SizeBytes, UploadedAt = d.UploadedAt })
+            .Select(d => new CaseDocument { Id = d.Id, QueryId = d.QueryId, Purpose = d.Purpose, FileName = d.FileName, ContentType = d.ContentType, SizeBytes = d.SizeBytes, UploadedAt = d.UploadedAt })
             .ToListAsync(ct);
         if (all.Count == 0)
         {
             if (manual) throw new ArgumentException("No documents have been uploaded on this case yet.");
             return null;
         }
-        var newest = all[0].UploadedAt;
-        var batch = all.Where(d => d.UploadedAt >= newest.AddMinutes(-2)).OrderBy(d => d.Id).ToList();
+        var batch = LatestUpload(all);
 
         var form = ApplicationFormRules.Parse(
             await _db.ApplicationForms.AsNoTracking().Where(f => f.ReferenceId == referenceId).Select(f => f.DataJson).FirstOrDefaultAsync(ct));
@@ -216,7 +235,7 @@ public sealed class AiAutomationService
 
         if (observations.Count == 0 && errors.Count > 0)
             return await SaveFailureAsync(insight, $"AI document check could not run: {string.Join(" ", errors)} Operations should verify the documents manually.");
-        notChecked.AddRange(errors.Select(e => e.Split(':')[0] + " (AI error)"));
+        notChecked.AddRange(errors.Select(e => e.Split(':')[0] + " (AI busy)"));
 
         var plan = DocumentCheckPolicy.Plan(observations, notChecked, latest, form, queries);
         insight.Outcome = plan.Outcome;

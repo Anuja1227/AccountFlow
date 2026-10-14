@@ -68,8 +68,8 @@ export function DeskPage({ workspace }: { workspace: Workspace }) {
             ]
         }
         return [
-            { label: 'Submissions to process', kind: 'cases' as const, cases: open.filter((a) => a.actionBy === WS.mofsl), hint: 'Submitted by Operations. Once the account is opened, send the account details to Operations, or raise a query if anything needs correcting.' },
-            { label: 'Operations responses to review', kind: 'queries' as const, queries: outbox('Responded'), hint: 'Operations answered your query. Accept the response (then send the account details) or follow up.' },
+            { label: 'Submissions to process', kind: 'cases' as const, cases: open.filter((a) => a.actionBy === WS.mofsl), hint: 'Submitted by Operations. Raise a query, or confirm "No query — all clear"; then send the account details once the account is opened.' },
+            { label: 'Operations responses to review', kind: 'queries' as const, queries: outbox('Responded'), hint: 'Operations answered your query. Accept it, raise another query, or mark the queries resolved.' },
             { label: 'Open MOFSL queries', kind: 'queries' as const, queries: outbox('Open'), hint: 'Waiting on Operations.' },
             { label: 'Accounts opened', kind: 'cases' as const, cases: cases.filter((a) => !!a.accountOpeningDate), hint: 'Cases with an account number and opening date.' },
         ]

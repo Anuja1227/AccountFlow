@@ -307,7 +307,7 @@ public sealed class CaseService
         var existing = await _db.Accounts.Where(a => a.ReferenceId == referenceId).ToListAsync();
 
         if (request.EntryType == "New" && existing.Count > 0)
-            return ServiceResult<Account>.Fail($"Reference ID {referenceId} already exists. Log a Resubmission, Discrepancy Resolution or Modification entry instead.", 409);
+            return ServiceResult<Account>.Fail($"Reference ID {referenceId} already exists.", 409);
         if (request.EntryType != "New" && existing.Count == 0)
             return ServiceResult<Account>.Fail($"Reference ID {referenceId} does not exist. A {request.EntryType} entry must share the Reference ID of an existing case.");
 

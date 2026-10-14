@@ -359,7 +359,14 @@ public class AdminController : ControllerBase
             .Select(t => new
             {
                 t.Id, t.Name, t.WorkspaceType, t.Description, t.IsActive, t.CreatedAt,
-                MemberCount = t.UserTeams.Count
+                MemberCount = t.UserTeams.Count,
+                Members = t.UserTeams.OrderBy(m => m.User!.FullName)
+                    .Select(m => new
+                    {
+                        m.UserId, m.User!.FullName, m.User.Email, m.User.CseName, m.User.IsActive, m.User.LastLoginAt,
+                        Roles = m.User.UserRoles.Select(r => r.Role!.Name).ToList()
+                    })
+                    .ToList()
             })
             .ToListAsync());
 

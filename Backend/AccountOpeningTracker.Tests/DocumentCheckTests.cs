@@ -42,7 +42,7 @@ public class DocumentCheckTests
         Assert.Equal(InsightOutcomes.NoIssuesFound, plan.Outcome);
         Assert.Empty(plan.Findings);
         Assert.Empty(plan.Steps);
-        Assert.Contains("must still compare the signature", plan.Summary);
+        Assert.Contains("compare the signature", plan.Summary);
     }
 
     [Fact]
@@ -109,5 +109,62 @@ public class DocumentCheckTests
         var plan = DocumentCheckPolicy.Plan(Array.Empty<DocumentObservation>(), new[] { "form.pdf (PDF)" }, Case(), Form, new List<CaseQuery>());
         Assert.Equal(InsightOutcomes.Uncertain, plan.Outcome);
         Assert.Empty(plan.Steps);
+    }
+}
+
+public class SignaturePerDocumentTests
+{
+    private static Account Case()
+    {
+        var a = Make.Record(1);
+        a.ClientName = "Riya Desai";
+        a.PanNo = "ABCPD7788Q";
+        a.LatestStatus = S.SignedFormReceived;
+        return a;
+    }
+
+    private static DocumentObservation Page(string name, bool? signed, List<string>? other = null) =>
+        new(name, "Signed application form", true, null, true, signed, new(), other ?? new(), 0.9);
+
+    [Fact]
+    public void Signature_on_the_last_page_is_enough_and_page_count_remarks_are_ignored()
+    {
+        var pages = new[] { Page("form.pdf page 1", false, new() { "Page 1 of 2 — page 2 not seen" }), Page("form.pdf page 2", true) };
+        var plan = DocumentCheckPolicy.Plan(pages, Array.Empty<string>(), Case(), new Dictionary<string, string>(), new List<CaseQuery>());
+        Assert.Equal(InsightOutcomes.NoIssuesFound, plan.Outcome);
+    }
+
+    [Fact]
+    public void Missing_signature_is_not_flagged_when_a_page_was_not_read()
+    {
+        var pages = new[] { Page("form.pdf page 1", false) };
+        var plan = DocumentCheckPolicy.Plan(pages, new[] { "form.pdf page 2 (AI busy)" }, Case(), new Dictionary<string, string>(), new List<CaseQuery>());
+        Assert.DoesNotContain(plan.Findings, f => f.Contains("signature"));
+        Assert.Contains("Signature not confirmed", plan.Summary);
+    }
+
+    [Fact]
+    public void Unsigned_document_is_flagged_once()
+    {
+        var pages = new[] { Page("form.pdf page 1", false), Page("form.pdf page 2", false) };
+        var plan = DocumentCheckPolicy.Plan(pages, Array.Empty<string>(), Case(), new Dictionary<string, string>(), new List<CaseQuery>());
+        Assert.Single(plan.Findings, f => f.Contains("no signature"));
+    }
+}
+
+public class LatestUploadTests
+{
+    [Fact]
+    public void Only_the_corrected_upload_is_checked_not_the_first_signed_form()
+    {
+        var t = new DateTime(2026, 10, 14, 8, 40, 0, DateTimeKind.Utc);
+        var docs = new List<AccountOpeningTracker.Api.Models.CaseDocument>
+        {
+            new() { Id = 1, FileName = "first_signed.pdf", Purpose = "Send signed form to Operations", UploadedAt = t },
+            new() { Id = 2, FileName = "corrected_signed.pdf", Purpose = "Respond to query", QueryId = 7, UploadedAt = t.AddSeconds(50) },
+            new() { Id = 3, FileName = "pan.jpg", Purpose = "Respond to query", QueryId = 7, UploadedAt = t.AddSeconds(50.2) },
+        };
+        var batch = AccountOpeningTracker.Api.Services.AiAutomationService.LatestUpload(docs);
+        Assert.Equal(new[] { 2, 3 }, batch.Select(d => d.Id));
     }
 }

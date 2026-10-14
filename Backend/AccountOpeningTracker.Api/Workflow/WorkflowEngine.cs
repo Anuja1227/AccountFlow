@@ -37,7 +37,8 @@ public static class ActionCodes
     public const string MofslSendAccountDetails = "mofsl-send-account-details";
     public const string MofslRaiseQuery = "mofsl-raise-query";
     public const string MofslAcceptResponse = "mofsl-accept-response";
-    public const string MofslFollowUp = "mofsl-follow-up";
+    public const string MofslNoQuery = "mofsl-no-query";
+    public const string MofslQueriesResolved = "mofsl-queries-resolved";
     public const string RecordAccountOpened = "record-account-opened";
 }
 
@@ -125,6 +126,9 @@ public static class WorkflowEngine
 
     public static readonly string[] DiscrepancyTypes =
         { "Document Missing", "Signature Mismatch", "Incomplete Details", "Other" };
+
+    /// <summary>Stage 5 Status once MOFSL confirms there are no (further) queries.</summary>
+    public const string MofslCleared = "Cleared by MOFSL";
 
     private static readonly Regex AccountNumberPattern = new("^[A-Za-z0-9/-]{4,30}$", RegexOptions.Compiled);
 
@@ -238,11 +242,14 @@ public static class WorkflowEngine
                 new ActionField("actionDate", "MOFSL Query Raised Date", "date", false, Help: "Defaults to today.")
             }),
         new(ActionCodes.MofslAcceptResponse, "Accept Operations response", WorkspaceTypes.Mofsl, Permissions.WorkflowMofsl,
-            "The Operations response resolves the MOFSL query. Send the account details once the account is opened.", true, null, "success",
+            "The Operations response answers this query. You can still raise another query, or mark the queries resolved.", true, null, "primary",
             new[] { new ActionField("details", "Note (optional)", "textarea", false) }),
-        new(ActionCodes.MofslFollowUp, "Still pending — follow up", WorkspaceTypes.Mofsl, Permissions.WorkflowMofsl,
-            "The response does not resolve the MOFSL query. Reopen it.", true, null, "warning",
-            new[] { Text("details", "Follow-up message"), DateField }),
+        new(ActionCodes.MofslNoQuery, "No query — all clear", WorkspaceTypes.Mofsl, Permissions.WorkflowMofsl,
+            "The submission is in order and MOFSL has no query. Next: Account opened.", false, null, "success",
+            new[] { new ActionField("details", "Note (optional)", "textarea", false) }),
+        new(ActionCodes.MofslQueriesResolved, "Query resolved", WorkspaceTypes.Mofsl, Permissions.WorkflowMofsl,
+            "All MOFSL queries on this submission are resolved and there are no further queries. Next: Account opened.", false, null, "success",
+            new[] { new ActionField("details", "Note (optional)", "textarea", false) }),
         new(ActionCodes.RecordAccountOpened, "Log account details in tracker", WorkspaceTypes.Operations, Permissions.WorkflowOperations,
             "Log the account number and opening date MOFSL sent. Marks the case as Account Opened.", false, null, "success",
             new[]
@@ -392,20 +399,28 @@ public static class WorkflowEngine
                     _ => "Unsupported query type."
                 };
 
-            case ActionCodes.MofslSendAccountDetails:
             case ActionCodes.MofslRaiseQuery:
+            case ActionCodes.MofslNoQuery:
+            case ActionCodes.MofslQueriesResolved:
+            case ActionCodes.MofslSendAccountDetails:
+            {
                 if (!StatusIn(S.SubmittedToMofsl, S.MofslQueryResolved)) return NotFrom(status);
-                // Once MOFSL has accepted the resolution of its query there are no further
-                // queries: only "Account opened" remains. (Still-open points use "Still pending".)
-                if (code == ActionCodes.MofslRaiseQuery && status == S.MofslQueryResolved)
-                    return "MOFSL accepted the query resolution; use \"Still pending — follow up\" before accepting if something is still open.";
                 if (latest.ActionBy != WorkspaceTypes.Mofsl) return "MOFSL has already sent the account details.";
-                // Only once every MOFSL query has been tracked through to resolution.
-                return ctx.Queries.Any(q => q.QueryType == QueryTypes.MofslQuery && Unresolved(q))
-                    ? "Review the Operations response to the open MOFSL query first." : null;
+                var mofslQueries = ctx.Queries.Where(q => q.QueryType == QueryTypes.MofslQuery).ToList();
+                if (mofslQueries.Any(q => q.Status == QueryStatuses.Open)) return "Waiting for Operations to respond to the MOFSL query.";
+                bool cleared = latest.Stage5Status == MofslCleared;
+                return code switch
+                {
+                    // "Account opened" only after MOFSL said there are no (further) queries.
+                    ActionCodes.MofslSendAccountDetails => cleared ? null : "Mark the MOFSL queries resolved (or 'No query') first.",
+                    _ when cleared => "MOFSL has confirmed there are no further queries.",
+                    ActionCodes.MofslNoQuery => mofslQueries.Count == 0 ? null : "Use 'Query resolved' once the MOFSL queries are answered.",
+                    ActionCodes.MofslQueriesResolved => mofslQueries.Count > 0 ? null : "There is no MOFSL query to resolve; use 'No query — all clear'.",
+                    _ => null, // raise a (further) query
+                };
+            }
 
             case ActionCodes.MofslAcceptResponse:
-            case ActionCodes.MofslFollowUp:
                 if (query!.QueryType != QueryTypes.MofslQuery || query.Status != QueryStatuses.Responded)
                     return "Only a MOFSL query that Operations has responded to can be reviewed.";
                 return StatusIn(S.MofslQueryResolved) ? null : NotFrom(status);
@@ -748,6 +763,9 @@ public static class WorkflowEngine
             }
 
             case ActionCodes.MofslRaiseQuery:
+                // A response MOFSL had not accepted yet is accepted before the next query.
+                foreach (var q in ctx.Queries.Where(q => q.QueryType == QueryTypes.MofslQuery && q.Status == QueryStatuses.Responded))
+                    Resolve(q);
                 newQuery = Raise(QueryTypes.MofslQuery, input.MofslQueryType!.Trim(), WorkspaceTypes.Operations);
                 latest.MofslQueryRaisedDate ??= date;
                 latest.MofslQueryType = input.MofslQueryType.Trim();
@@ -775,12 +793,15 @@ public static class WorkflowEngine
                 audit = "MOFSL accepted the query resolution";
                 break;
 
-            case ActionCodes.MofslFollowUp:
-                Reopen(query!);
-                latest.MofslQueryResolvedDate = null;
-                SetStatus(latest, S.QueryRaisedByMofsl, WorkspaceTypes.Operations);
-                latest.Stage5Status = S.QueryRaisedByMofsl;
-                audit = "MOFSL followed up on its query (still pending)";
+            case ActionCodes.MofslNoQuery:
+            case ActionCodes.MofslQueriesResolved:
+                // Accepts any response still waiting, then records that MOFSL has no further
+                // queries. Status stays within the requirement's list; next is "Account opened".
+                foreach (var q in ctx.Queries.Where(q => q.QueryType == QueryTypes.MofslQuery && q.Status == QueryStatuses.Responded))
+                    Resolve(q);
+                latest.Stage5Status = MofslCleared;
+                audit = code == ActionCodes.MofslNoQuery ? "MOFSL: no query, submission in order" : "MOFSL: all queries resolved";
+                if (details.Length > 0) auditDetails = details;
                 break;
 
             case ActionCodes.RecordAccountOpened:

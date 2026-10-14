@@ -388,10 +388,11 @@ public sealed class AiService
         var prompt = new StringBuilder();
         prompt.AppendLine("TASK: Operations has just logged an account-opening request from a CSE (Indian stock-broking account, MOFSL). " +
                           "Decide whether the information is complete enough to prepare the application form, or whether a query must go back to the CSE.");
-        prompt.AppendLine("Flag an item ONLY if (a) the notes say it is missing, pending, unclear or to-follow, or (b) the account type has a specific mandatory " +
-                          "requirement that the notes do not confirm (Minor: guardian details and minor's date-of-birth proof; HUF: Karta details and HUF PAN; " +
-                          "NRI: overseas address and NRE/NRO bank details; Corporate: board resolution and authorised signatory list). " +
-                          "For an Individual request with no problems mentioned, it is complete.");
+        // Only the Minor rule is applied: the application form has a guardian section for it.
+        // Other account-type documents (HUF Karta, NRI, Corporate) are not in the requirement.
+        prompt.AppendLine("Flag an item ONLY if (a) the notes say it is missing, pending, unclear or to-follow, or (b) the account type is Minor " +
+                          "and the notes do not confirm the guardian's details. Do not ask for any other account-type documents. " +
+                          "For a request with no problems mentioned, it is complete.");
         prompt.AppendLine();
         prompt.AppendLine("REQUEST:");
         prompt.AppendLine($"- Account type: {latest.AccountType}; channel: {latest.Channel}; segment: {Fallback(latest.Segment)}; location: {Fallback(latest.Location)}; entry type: {latest.EntryType}");

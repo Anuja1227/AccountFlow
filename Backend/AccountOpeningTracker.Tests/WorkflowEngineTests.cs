@@ -88,6 +88,12 @@ public class WorkflowEngineTests
 
         // Operations cannot log the opening until MOFSL sends the account details.
         Assert.False(h.Run(ActionCodes.RecordAccountOpened, Harness.Ops, new WorkflowInput { AccountNumber = "MO123456" }).Success);
+        // Step 1: MOFSL sees "Raise MOFSL query" and "No query — all clear", not "Account opened" yet.
+        Assert.False(h.Run(ActionCodes.MofslSendAccountDetails, Harness.Mofsl, new WorkflowInput { AccountNumber = "MO123456" }).Success);
+        Assert.False(h.Run(ActionCodes.MofslQueriesResolved, Harness.Mofsl).Success);
+        h.Ok(ActionCodes.MofslNoQuery, Harness.Mofsl);
+        Assert.Equal(S.SubmittedToMofsl, h.Latest.LatestStatus);
+        Assert.False(h.Run(ActionCodes.MofslRaiseQuery, Harness.Mofsl, new WorkflowInput { MofslQueryType = "KYC", Details = "x" }).Success);
         Assert.False(h.Run(ActionCodes.MofslSendAccountDetails, Harness.Mofsl).Success); // account number required
         h.Ok(ActionCodes.MofslSendAccountDetails, Harness.Mofsl, new WorkflowInput { AccountNumber = "MO123456", Details = "Opened today" });
         Assert.Equal("MO123456", h.Latest.MofslAccountNumber);
@@ -235,17 +241,22 @@ public class WorkflowEngineTests
         Assert.NotNull(h.Latest.MofslQueryResolvedDate);
         Assert.Equal(WorkspaceTypes.Mofsl, h.Latest.ActionBy);
 
-        // MOFSL reviews the response: follow up once, then accept.
-        h.Ok(ActionCodes.MofslFollowUp, Harness.Mofsl, Text("PAN copy still unclear", q.Id));
-        Assert.Equal(S.QueryRaisedByMofsl, h.Latest.LatestStatus);
-        h.Ok(ActionCodes.OpsRespondMofsl, Harness.Ops, Text("Clear PAN copy attached", q.Id));
-        // "Account opened" is not available while the MOFSL query is unresolved.
+        // Step 3: accept the response, then MOFSL finds something else and raises another query.
         Assert.False(h.Run(ActionCodes.MofslSendAccountDetails, Harness.Mofsl, new WorkflowInput { AccountNumber = "MO1234" }).Success);
-        Assert.False(h.Run(ActionCodes.RecordAccountOpened, Harness.Ops, new WorkflowInput { AccountNumber = "MO1234" }).Success);
-        h.Ok(ActionCodes.MofslAcceptResponse, Harness.Mofsl, Text("Resolved", q.Id));
-        // Query fully resolved: only "Account opened" is offered, not another query.
-        Assert.False(h.Run(ActionCodes.MofslRaiseQuery, Harness.Mofsl, new WorkflowInput { MofslQueryType = "KYC", Details = "x" }).Success);
+        h.Ok(ActionCodes.MofslAcceptResponse, Harness.Mofsl, Text("OK", q.Id));
         Assert.Equal(QueryStatuses.Resolved, q.Status);
+        Assert.False(h.Run(ActionCodes.MofslSendAccountDetails, Harness.Mofsl, new WorkflowInput { AccountNumber = "MO1234" }).Success);
+        h.Ok(ActionCodes.MofslRaiseQuery, Harness.Mofsl, new WorkflowInput { MofslQueryType = "Address proof", Details = "Address proof is not legible" });
+        var q2 = h.LastQuery;
+        Assert.Equal(S.QueryRaisedByMofsl, h.Latest.LatestStatus);
+        Assert.False(h.Run(ActionCodes.MofslQueriesResolved, Harness.Mofsl).Success); // waiting for Operations
+        h.Ok(ActionCodes.OpsRespondMofsl, Harness.Ops, Text("Clear copy attached", q2.Id));
+
+        // "Query resolved" (accepts the pending response) → only "Account opened" remains.
+        Assert.False(h.Run(ActionCodes.MofslNoQuery, Harness.Mofsl).Success);
+        h.Ok(ActionCodes.MofslQueriesResolved, Harness.Mofsl);
+        Assert.Equal(QueryStatuses.Resolved, q2.Status);
+        Assert.False(h.Run(ActionCodes.MofslRaiseQuery, Harness.Mofsl, new WorkflowInput { MofslQueryType = "KYC", Details = "x" }).Success);
         Assert.Equal(WorkspaceTypes.Mofsl, h.Latest.ActionBy); // MOFSL still owes the account details
         Assert.False(h.Run(ActionCodes.RecordAccountOpened, Harness.Ops, new WorkflowInput { AccountNumber = "MO1234" }).Success);
 
@@ -296,6 +307,7 @@ public class WorkflowEngineTests
         var h = new Harness();
         foreach (var a in new[] { ActionCodes.StartReview, ActionCodes.StartFormPreparation, ActionCodes.SendForm, ActionCodes.RecordSignedForm, ActionCodes.MarkInOrder, ActionCodes.SubmitToMofsl })
             h.Ok(a, Harness.Ops);
+        h.Ok(ActionCodes.MofslNoQuery, Harness.Mofsl);
         Assert.False(h.Run(ActionCodes.MofslSendAccountDetails, Harness.Mofsl, new WorkflowInput { AccountNumber = "no spaces allowed" }).Success);
         h.Ok(ActionCodes.MofslSendAccountDetails, Harness.Mofsl, new WorkflowInput { AccountNumber = "MO1234" });
         Assert.False(h.Run(ActionCodes.RecordAccountOpened, Harness.Ops, new WorkflowInput { AccountNumber = "no spaces allowed" }).Success);

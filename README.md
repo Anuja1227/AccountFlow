@@ -12,8 +12,8 @@ The business rules — stages, the 22-status master list, field names and calcul
 
 ## Features
 
-- **Six-stage workflow** — CSE request → form preparation → signed form → discrepancy resolution → submission to MOFSL → account opened. A state machine allows each of the 23 actions only from the right status and only for the right team.
-- **Operations maintains the tracker** — logs requests, raises queries, prepares and sends the application form, reviews the signed form, raises discrepancies, submits to MOFSL and tracks every query to resolution. CSE and MOFSL act from their own screens (CSE responds to queries and sends signed forms; MOFSL raises queries, accepts or follows up on the Operations response, and sends the account details once the account is opened), and every step lands in the same tracker record.
+- **Six-stage workflow** — CSE request → form preparation → signed form → discrepancy resolution → submission to MOFSL → account opened. A state machine allows each of the 24 actions only from the right status and only for the right team.
+- **Operations maintains the tracker** — logs requests, raises queries, prepares and sends the application form, reviews the signed form, raises discrepancies, submits to MOFSL and tracks every query to resolution. CSE and MOFSL act from their own screens (CSE responds to queries and sends signed forms; MOFSL raises queries, accepts Operations' responses, confirms when there are no (further) queries, and sends the account details once the account is opened), and every step lands in the same tracker record.
 - **CSE works inside the app** — sends requests with documents, answers queries, uploads the signed form; Operations reviews every response.
 - **In-app queries** — each query is a dated thread between teams; waiting time is counted as query hold days.
 - **Resubmissions as new records** — a correction creates a new record with the same Reference ID, so history is never overwritten.
@@ -115,11 +115,11 @@ This creates `ops.demo@`, `cse.demo@`, `mofsl.demo@` and `mis.demo@accountflow.l
 | 2 Form | Operations | Operations prepares the application form (AI can pre-fill it), saves it, then sends it for signature once it has no format errors → **Physical:** to the CSE · **Digital:** to the client. Printable version available. |
 | 3 Signed form | CSE → Operations | CSE uploads the signed form and documents → Operations reviews it next to the form that was sent → *Raise discrepancy* / *Return form*, or *Found in order* |
 | 4 Resolution | CSE → Operations | The CSE's correction creates a new record (*Discrepancy Resolution* or *Resubmission*) with the same Reference ID → Operations accepts (Found in order) or follows up (Still pending) |
-| 5 MOFSL | Operations ⇄ MOFSL | Operations *Submit to MOFSL* → MOFSL *Raise MOFSL query* if anything needs correcting → Operations *Respond to MOFSL query* → MOFSL *Accept Operations response* or *Still pending – follow up*. Once MOFSL accepts the resolution, only *✓ Account opened* remains (no new query). Status stays within the requirement's list (Submitted to MOFSL / Query Raised by MOFSL / Query Resolved); *Action By* shows whose turn it is. |
+| 5 MOFSL | Operations ⇄ MOFSL | Operations *Submit to MOFSL* → MOFSL *Raise MOFSL query* or *No query — all clear* → Operations *Respond to MOFSL query* → MOFSL *Accept Operations response*, *Raise another query* or *Query resolved*. Only after *No query* / *Query resolved* does MOFSL get *✓ Account opened*. Status stays within the requirement's list (Submitted to MOFSL / Query Raised by MOFSL / Query Resolved); *Action By* shows whose turn it is. |
 | 6 Account opened | MOFSL → Operations | MOFSL *✓ Account opened — send details to Operations* (Account Number, Account Opening Date) → Operations sees them on the case and *Log account details in tracker* (pre-filled from MOFSL's details) → *Send communication & close case* |
 | Exceptions | Operations | On hold / Resume, Reject, Cancelled by client |
 
-Every action is checked against the current status, open queries, required fields and action dates (not in the future, not before the inward date). All 23 actions go through one endpoint, `POST /api/cases/{referenceId}/actions/{actionCode}`. Direct correction of workflow fields requires `workflow.override` and is audited.
+Every action is checked against the current status, open queries, required fields and action dates (not in the future, not before the inward date). All 24 actions go through one endpoint, `POST /api/cases/{referenceId}/actions/{actionCode}`. Direct correction of workflow fields requires `workflow.override` and is audited.
 
 ## 5. Calculations (deterministic, unit-tested)
 
@@ -172,7 +172,7 @@ Introduce AI-driven analysis of case history and MIS data to identify cases at r
 2. **CSE:** *Send request to Operations* with details and a sample document. **Operations:** *Incoming requests* → *Log in tracker* → *Fill form with AI* → save. The AI completeness check suggests the Stage 1 query or the move to form preparation.
 3. **CSE:** *Queries to respond to* → reply. The AI reviews the reply; Operations accepts or follows up.
 4. **Operations:** *Application form* → *Fill with AI* → edit → *Save form* → *Send to CSE for signature*. **CSE:** *Forms to get signed* → *Send signed form to Operations* with the signed scan. **Operations:** *Signed forms to verify* → review the AI pre-check → *Raise discrepancy* or *Form found in order* → *Submit to MOFSL*.
-5. **MOFSL:** optionally *Raise MOFSL query* → **Operations:** *Respond to MOFSL query* → **MOFSL:** *Accept Operations response*. **MOFSL:** *✓ Account opened — send details to Operations*. **Operations:** *Log account details in tracker* → *Send communication & close case*.
+5. **MOFSL:** *Raise MOFSL query* (or *No query — all clear*) → **Operations:** *Respond to MOFSL query* → **MOFSL:** *Accept Operations response* / *Raise another query* / *Query resolved* → *✓ Account opened — send details to Operations*. **Operations:** *Log account details in tracker* → *Send communication & close case*.
 6. **MIS dashboard** and **History** show the case, its figures and its full audit trail.
 7. **Unauthorized access:** as the CSE user, open `/admin/users` (Not available); call `GET /api/admin/users` (403) or any `/api/...` without signing in (401).
 

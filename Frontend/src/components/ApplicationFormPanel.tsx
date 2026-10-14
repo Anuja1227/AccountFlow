@@ -419,7 +419,7 @@ export function SignedFormPanel({
             </div>
 
             {verifying && isOps && (
-                <div className="ai-check-box">
+                <div className="ai-check-box" id="ai-precheck">
                     <div className="row-actions">
                         <strong>✦ AI pre-check</strong>
                         {check && <Pill tone={check.outcome === 'IssuesFound' ? 'warning' : check.outcome === 'NoIssuesFound' ? 'success' : 'neutral'}>{check.outcome === 'IssuesFound' ? 'Issues found' : check.outcome === 'NoIssuesFound' ? 'No issues found' : check.outcome === 'Failed' ? 'AI unavailable' : 'Needs a person'}</Pill>}
@@ -457,9 +457,6 @@ export function SignedFormPanel({
                                     <span className="muted small">Opens the drafted message for you to edit. Nothing is sent until you confirm.</span>
                                 </div>
                             )}
-                            <p className="muted small">
-                                {dateTime(check.createdAt)} · {check.model}. AI reads the images and reports what it sees; name, PAN, date of birth and bank details are compared with the form by the system. AI does not judge whether a signature is genuine — that is your check.
-                            </p>
                         </>
                     ) : (
                         <p className="muted small">AI has not checked these documents yet. It reads up to 3 images or PDF pages and flags mismatches with the form, missing signatures and unreadable scans.</p>

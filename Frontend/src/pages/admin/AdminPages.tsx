@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Empty, ErrorBanner, Field, Loading, Modal, PageHeader, Pill, SuccessBanner } from '../../components/ui'
 import { del, errorMessage, get, post, put } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
@@ -16,7 +16,8 @@ type RoleRow = {
     permissions: string[]
     userCount: number
 }
-type TeamRow = { id: number; name: string; workspaceType: string; description: string | null; isActive: boolean; memberCount: number }
+type TeamMember = { userId: number; fullName: string; email: string; cseName: string | null; isActive: boolean; lastLoginAt: string | null; roles: string[] }
+type TeamRow = { id: number; name: string; workspaceType: string; description: string | null; isActive: boolean; memberCount: number; members?: TeamMember[] }
 type UserRow = {
     id: number
     email: string
@@ -539,6 +540,21 @@ export function TeamsPage() {
     const [error, setError] = useState('')
     const [notice, setNotice] = useState('')
     const [editing, setEditing] = useState<TeamRow | 'new' | null>(null)
+    const [openTeam, setOpenTeam] = useState<number | null>(null)
+    const [editingUser, setEditingUser] = useState<number | null>(null)
+    const { user: me } = useAuth()
+
+    // Member actions, the same as on the Users page.
+    async function toggleMember(m: TeamMember) {
+        setError('')
+        try {
+            await post(`/admin/users/${m.userId}/status`, { isActive: !m.isActive })
+            setNotice(`${m.fullName} ${m.isActive ? 'deactivated — they are signed out on their next request' : 'activated'}.`)
+            await load()
+        } catch (err) {
+            setError(errorMessage(err))
+        }
+    }
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -586,28 +602,101 @@ export function TeamsPage() {
                             </thead>
                             <tbody>
                                 {teams.map((t) => (
-                                    <tr key={t.id}>
+                                    <Fragment key={t.id}>
+                                    <tr>
                                         <td>
                                             <strong>{t.name}</strong>
                                             <span className="cell-subtitle">{t.description}</span>
                                         </td>
                                         <td>{t.workspaceType}</td>
-                                        <td>{t.memberCount}</td>
+                                        <td>
+                                            {t.memberCount === 0 ? (
+                                                <span className="muted">No members</span>
+                                            ) : (
+                                                <button type="button" className="link-button" aria-expanded={openTeam === t.id} onClick={() => setOpenTeam(openTeam === t.id ? null : t.id)}>
+                                                    {openTeam === t.id ? '▾' : '▸'} {t.memberCount} member{t.memberCount === 1 ? '' : 's'}
+                                                </button>
+                                            )}
+                                        </td>
                                         <td>
                                             <Pill tone={t.isActive ? 'success' : 'neutral'}>{t.isActive ? 'Active' : 'Inactive'}</Pill>
                                         </td>
                                         <td>
                                             <button className="clear-button" onClick={() => setEditing(t)}>
-                                                Edit
+                                                Edit team
                                             </button>
                                         </td>
                                     </tr>
+                                    {openTeam === t.id && (
+                                        <tr className="team-members-row">
+                                            <td colSpan={5}>
+                                                <div className="team-members">
+                                                    <div className="team-members-title">Members of {t.name}</div>
+                                                    {(t.members ?? []).length === 0 ? (
+                                                        <p className="muted small">Member details are not available. Restart the backend so the new data is returned.</p>
+                                                    ) : (
+                                                        <table>
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Name</th>
+                                                                    <th>Email</th>
+                                                                    <th>Role(s)</th>
+                                                                    <th>CSE name</th>
+                                                                    <th>Last sign-in</th>
+                                                                    <th>Status</th>
+                                                                    <th />
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {(t.members ?? []).map((m) => (
+                                                                    <tr key={m.userId}>
+                                                                        <td>
+                                                                            <strong>{m.fullName}</strong>
+                                                                        </td>
+                                                                        <td>{m.email}</td>
+                                                                        <td>{m.roles.join(', ') || '—'}</td>
+                                                                        <td>{m.cseName ?? '—'}</td>
+                                                                        <td>{m.lastLoginAt ? dateTime(m.lastLoginAt) : 'Never'}</td>
+                                                                        <td>
+                                                                            <Pill tone={m.isActive ? 'success' : 'neutral'}>{m.isActive ? 'Active' : 'Inactive'}</Pill>
+                                                                        </td>
+                                                                        <td className="row-actions">
+                                                                            <button className="clear-button" onClick={() => setEditingUser(m.userId)}>
+                                                                                Edit
+                                                                            </button>
+                                                                            {m.userId !== me?.id && (
+                                                                                <button className="clear-button" onClick={() => void toggleMember(m)}>
+                                                                                    {m.isActive ? 'Deactivate' : 'Activate'}
+                                                                                </button>
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                    </Fragment>
                                 ))}
                             </tbody>
                         </table>
                     </div>
                 )}
             </section>
+            {editingUser !== null && (
+                <UserEditor
+                    userId={editingUser}
+                    onClose={() => setEditingUser(null)}
+                    onSaved={(msg) => {
+                        setEditingUser(null)
+                        setNotice(msg)
+                        void load()
+                    }}
+                />
+            )}
             {editing && (
                 <TeamEditor
                     team={editing === 'new' ? null : editing}

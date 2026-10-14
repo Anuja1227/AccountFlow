@@ -45,6 +45,8 @@ export function CaseDetailPage({ referenceId }: { referenceId: string }) {
     const [editing, setEditing] = useState(false)
     const [version, setVersion] = useState(0)
     const { pathname, search } = useLocation()
+    const auth = useAuth()
+    const isOps = auth.inWorkspace(WS.operations) && auth.can('workflow.operations')
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -108,8 +110,37 @@ export function CaseDetailPage({ referenceId }: { referenceId: string }) {
         setActive(act)
     }
 
-    const suggestion = currentSuggestion(detail)
-    const mainActions = detail.availableActions.filter((x) => !EXCEPTION_ACTIONS.includes(x.code))
+    // Signed-form AI check: only its newest run counts, so an older suggestion does not stay
+    // on screen after "Run again". When the newest run has nothing to suggest, a short line
+    // with the result is shown instead, and "Details" opens the pre-check on the Documents tab.
+    const latestDocCheck = detail.aiInsights.find((i) => i.kind === 'DocumentCheck') ?? null
+    // While the corrected documents are being verified, a clean document check wins over an
+    // earlier reply check: its "follow up" suggestion is not shown.
+    const docsClean = DOCUMENT_STATUSES.includes(a.latestStatus) && latestDocCheck?.outcome === 'NoIssuesFound'
+    const suggestion = currentSuggestion({
+        ...detail,
+        aiInsights: detail.aiInsights.filter(
+            (i) => (i.kind !== 'DocumentCheck' || i.id === latestDocCheck?.id) && !(docsClean && i.kind === 'ResponseReview'),
+        ),
+    })
+    // Operations only: the pre-check it points to is shown to Operations only.
+    const docCheckLine = isOps && latestDocCheck && suggestion?.id !== latestDocCheck.id && DOCUMENT_STATUSES.includes(a.latestStatus) ? latestDocCheck : null
+    const openPrecheck = () => {
+        setTab('documents')
+        // The Documents tab renders after the switch; try for up to ~1 s.
+        let tries = 0
+        const go = () => {
+            const el = document.getElementById('ai-precheck')
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            else if (++tries < 10) setTimeout(go, 100)
+        }
+        setTimeout(go, 50)
+    }
+    // After a first MOFSL query, "Raise MOFSL query" reads "Raise another query".
+    const hasMofslQuery = detail.queries.some((q) => q.queryType === 'MofslQuery')
+    const mainActions = detail.availableActions
+        .filter((x) => !EXCEPTION_ACTIONS.includes(x.code))
+        .map((x) => (x.code === 'mofsl-raise-query' && hasMofslQuery ? { ...x, label: 'Raise another query' } : x))
     const moreActions = detail.availableActions.filter((x) => EXCEPTION_ACTIONS.includes(x.code))
     const modeLabel = detail.automationMode === 'Automatic' ? 'Automatic' : detail.automationMode === 'SuggestOnly' ? 'Suggest only' : 'Off'
 
@@ -186,6 +217,14 @@ export function CaseDetailPage({ referenceId }: { referenceId: string }) {
                     </div>
                 )}
                 <IntakeHint detail={detail} suggestion={suggestion} onChanged={(message) => refresh(message)} />
+                {docCheckLine && (
+                    <div className="intake-hint">
+                        ✦ AI form check: <strong className={`hint-${OUTCOME_TONE[docCheckLine.outcome] ?? 'neutral'}`}>{checkHeadline(docCheckLine)}</strong> ·{' '}
+                        <button type="button" className="ai-line-link" onClick={openPrecheck}>
+                            Details
+                        </button>
+                    </div>
+                )}
                 {suggestion && (
                     <AiSuggestionCard
                         detail={detail}

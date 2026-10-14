@@ -102,7 +102,8 @@ public class CasesController : ControllerBase
         {
             try
             {
-                await _automation.RunResponseReviewAsync(referenceId, input.QueryId.Value, user.UserId, manual: false, ct);
+                await _automation.RunResponseReviewAsync(referenceId, input.QueryId.Value, user.UserId, manual: false, ct,
+                    documentsAttached: fileCount > 0);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

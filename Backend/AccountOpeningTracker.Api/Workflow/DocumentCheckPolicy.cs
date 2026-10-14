@@ -47,6 +47,9 @@ public static class DocumentCheckPolicy
     private static DateTime? ParseDate(string? s) =>
         s != null && DateTime.TryParseExact(s.Trim(), DateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d.Date : null;
 
+    /// <summary>"form.pdf page 2" → "form.pdf" (one PDF is read page by page).</summary>
+    public static string DocumentName(string fileName) => Regex.Replace(fileName.Trim(), @"\s+page\s+\d+$", "", RegexOptions.IgnoreCase);
+
     /// <summary>Field-by-field comparison of what is on the document with what is on record.</summary>
     public static List<string> Mismatches(DocumentObservation o, Account latest, IReadOnlyDictionary<string, string> form)
     {
@@ -95,6 +98,7 @@ public static class DocumentCheckPolicy
     {
         var findings = new List<string>();
         bool signatureIssue = false, dataIssue = false, missingIssue = false;
+        var unconfirmed = new List<string>();
 
         foreach (var o in observations)
         {
@@ -104,23 +108,39 @@ public static class DocumentCheckPolicy
                 findings.Add(prefix + $"not clearly readable{(o.QualityIssue != null ? $" — {o.QualityIssue}" : "")}.");
                 missingIssue = true;
             }
-            if (o.SignatureExpected && o.SignaturePresent == false)
-            {
-                findings.Add(prefix + "no signature in the applicant's signature space.");
-                signatureIssue = true;
-            }
             foreach (var m in Mismatches(o, latest, form))
             {
                 findings.Add(prefix + m);
                 dataIssue = true;
             }
             // Signature, readability and field values are checked through the structured
-            // answers above; free-text comments about them would only duplicate findings.
-            foreach (var other in o.OtherIssues.Where(x => !Regex.IsMatch(x, @"signature|signed|blur|legib|readab|\bPAN\b|date of birth|\bDOB\b|IFSC|account number", RegexOptions.IgnoreCase)))
+            // answers; free-text comments about them would only duplicate findings. On a page
+            // of a PDF, "page 1 of 2" remarks are dropped too: every page is read separately.
+            // (On a single image they stay: the other pages may really be missing.)
+            bool pdfPage = Regex.IsMatch(o.FileName, @"\s+page\s+\d+$", RegexOptions.IgnoreCase);
+            foreach (var other in o.OtherIssues.Where(x =>
+                         !Regex.IsMatch(x, @"signature|signed|blur|legib|readab|\bPAN\b|date of birth|\bDOB\b|IFSC|account number", RegexOptions.IgnoreCase) &&
+                         !(pdfPage && Regex.IsMatch(x, @"page \d+ of \d+|other pages?|pages? (were |was )?not (seen|shown|visible|provided)", RegexOptions.IgnoreCase))))
             {
                 findings.Add(prefix + other);
                 missingIssue = true;
             }
+        }
+
+        // The signature is judged per document, not per page: a multi-page form is signed
+        // on one page (usually the last). Flag it only if no page of that document shows a
+        // signature, and only when every page was actually read.
+        foreach (var doc in observations.GroupBy(o => DocumentName(o.FileName)))
+        {
+            if (!doc.Any(o => o.SignatureExpected) || doc.Any(o => o.SignaturePresent == true)) continue;
+            if (!doc.Any(o => o.SignatureExpected && o.SignaturePresent == false)) continue;
+            if (notChecked.Any(n => DocumentName(n.Split(" (")[0]) == doc.Key))
+            {
+                unconfirmed.Add(doc.Key);
+                continue;
+            }
+            findings.Add($"{doc.Key}: no signature found on any page.");
+            signatureIssue = true;
         }
 
         if (observations.Count > 0 && !observations.Any(o => o.DocumentType == "Signed application form"))
@@ -129,17 +149,19 @@ public static class DocumentCheckPolicy
             missingIssue = true;
         }
 
-        var note = notChecked.Count > 0 ? $" Not checked by AI: {string.Join(", ", notChecked)}." : "";
+        // Short summaries: the findings list carries the detail.
+        var note = notChecked.Count > 0 ? $" Not read: {string.Join(", ", notChecked)}." : "";
+        if (unconfirmed.Count > 0)
+            note += $" Signature not confirmed for {string.Join(", ", unconfirmed)} — run again in a minute.";
 
         if (observations.Count == 0)
             return new DocumentCheckPlan(InsightOutcomes.Uncertain, findings,
-                "AI could not check any image on this case." + note + " Operations must verify the documents manually.",
+                "AI could not read the documents." + note + " Check them manually.",
                 null, null, new());
 
         if (findings.Count == 0)
             return new DocumentCheckPlan(NoIssuesFound, findings,
-                $"AI found no problems in {observations.Count} image(s): details match the form and a signature is present where expected." + note +
-                " Operations must still compare the signature with the PAN / ID proof before marking the form in order.",
+                "No issues found." + note + " Operations to compare the signature with the PAN / ID proof.",
                 null, null, new());
 
         string type = signatureIssue ? "Signature Mismatch" : dataIssue ? "Incomplete Details" : missingIssue ? "Document Missing" : "Other";
@@ -168,7 +190,7 @@ public static class DocumentCheckPolicy
         }
 
         return new DocumentCheckPlan(IssuesFound, findings,
-            $"AI found {findings.Count} possible issue(s) in the documents sent back. Check them and raise the discrepancy if you agree." + note,
+            $"{findings.Count} issue(s) found." + note,
             type, message, steps);
     }
 }
