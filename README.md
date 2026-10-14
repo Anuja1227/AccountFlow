@@ -19,6 +19,7 @@ The business rules — stages, the 22-status master list, field names and calcul
 - **Resubmissions as new records** — a correction creates a new record with the same Reference ID, so history is never overwritten.
 - **Automatic calculations** — Original Inward Date, Resubmission Count, RFT/NRFT, Gross and Net TAT, Current Aging, SLA breach, Stage 1–6 TAT and stage-wise SLA, Current Stage.
 - **MIS dashboard** — by CSE, location and segment, with a stage pipeline, overall summary and filters.
+- **Management overview (Admin)** — the Overall Summary Dashboard: organisation KPIs, open cases pending with each team (Operations / CSE / MOFSL) with SLA breaches and aging, query handling per team, CSE-side vs MOFSL-side rework, and stage-wise TAT with the slowest stage.
 - **Access control** — Admin-managed users, teams, roles, permissions and per-user overrides; case-level visibility; masking of client identifiers.
 - **AI assistance** — fills forms from the CSE's text, checks completeness and drafts queries, reviews CSE replies, pre-checks signed forms with a vision model. Code makes the decisions and Operations confirms.
 - **Audit history** — every action records who, team, from/to status and when.
@@ -131,8 +132,9 @@ Every action is checked against the current status, open queries, required field
 - **SLA breach** — Gross TAT above the threshold (default 7 working days, set by Admin).
 - **Stage 1–6 TAT and stage-wise SLA** — working days spent in each stage, each flagged against the same threshold. Stages 1–5 add up to Gross TAT.
 - **MIS** — one value per Reference ID (its latest record), so resubmissions add records but not cases. Filters apply to every figure.
+- **Management overview** — *pending with a team*: open cases whose latest record's Action By is that team; *over SLA*: of those, Gross TAT above the threshold; *queries received / raised*: by the query's recipient / sender team, with average time to first reply; *rework*: NRFT cases split into CSE-side only, MOFSL-side only, or both.
 
-TAT and aging are recalculated on every read, so open cases age without anyone editing them. Code: `Models/RftHelper.cs`, `TatHelper.cs`, `StageTatHelper.cs`, `MisCalculator.cs`.
+TAT and aging are recalculated on every read, so open cases age without anyone editing them. Code: `Models/RftHelper.cs`, `TatHelper.cs`, `StageTatHelper.cs`, `MisCalculator.cs`, `OverviewCalculator.cs`.
 
 ## 6. AI automation
 
@@ -180,6 +182,7 @@ The demo cases used in the live presentation (DEMO-FORM-01, DEMO-SIGN-01, DEMO-M
 
 ## 8. Known limitations
 
+- Team-wise TAT (how long each team held a case) is not shown; the requirements define TAT per case and per stage. The audit trail already holds the data needed to add it.
 - In-app communication only; no e-mail, SMS or WhatsApp notifications.
 - Working days are Monday–Friday; holidays are not excluded.
 - The signature check confirms a signature is present; it does not verify that it is genuine.

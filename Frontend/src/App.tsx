@@ -10,6 +10,7 @@ import { FormPrintPage } from './pages/FormPrintPage'
 import { LoginPage } from './pages/LoginPage'
 import { MisDashboard } from './pages/MisDashboard'
 import { NewCasePage } from './pages/NewCasePage'
+import { OverviewPage } from './pages/OverviewPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { IncomingRequestsPage, SendRequestPage } from './pages/RequestsPages'
 import { AccountPage, AuditPage, RolesPage, SettingsPage, TeamsPage, UsersPage } from './pages/admin/AdminPages'
@@ -73,6 +74,9 @@ function Routes() {
                 break
             case '/mis':
                 page = guard(can(P.reportsView), <MisDashboard />)
+                break
+            case '/admin/overview':
+                page = guard(can(P.reportsView), <OverviewPage />)
                 break
             case '/admin/users':
                 page = guard(can(P.adminUsers), <UsersPage />)

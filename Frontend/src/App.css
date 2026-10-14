@@ -3041,3 +3041,287 @@ a.nav-item {
     .team-members td.row-actions {
         white-space: nowrap;
     }
+
+/* ---------- Admin: management overview ---------- */
+.overview-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 14px;
+    margin: 22px 0 28px;
+}
+
+.overview-kpi {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 16px 18px;
+    border: 1px solid #e8ecf4;
+    border-radius: 13px;
+    background: #fff;
+}
+
+.overview-kpi span {
+    color: #8993a8;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.overview-kpi strong {
+    color: #20263a;
+    font-size: 26px;
+    font-variant-numeric: tabular-nums;
+}
+
+.overview-kpi small {
+    color: #8993a8;
+    font-size: 12px;
+}
+
+.overview-kpi.bad strong {
+    color: #b4332b;
+}
+
+.team-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.team-card {
+    display: grid;
+    gap: 12px;
+    align-content: start;
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid #e8ecf4;
+    border-radius: 13px;
+    background: #fff;
+}
+
+.team-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.team-card-top strong {
+    color: #20263a;
+    font-size: 15px;
+}
+
+.team-card-count {
+    color: #20263a;
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.team-card-count span {
+    margin-left: 6px;
+    color: #8993a8;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.team-card dl {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    font-size: 13px;
+}
+
+.team-card dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.team-card dt {
+    color: #8993a8;
+}
+
+.team-card dd {
+    margin: 0;
+    color: #20263a;
+    font-weight: 700;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.team-card a,
+.overview-more a {
+    color: var(--af-primary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.rework-bar {
+    display: flex;
+    height: 14px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #eef1f7;
+}
+
+.rework-bar span {
+    flex-basis: 0;
+}
+
+.rework-legend {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.rework-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.rework-row strong {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+}
+
+.rework-row small {
+    color: #8993a8;
+    font-weight: 600;
+}
+
+.rw-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.rw-rft { background: #1b8a5a; }
+.rw-cse { background: #e2a00c; }
+.rw-mofsl { background: #596be8; }
+.rw-both { background: #b4332b; }
+
+.compact-table {
+    min-width: 0;
+}
+
+.bottleneck-row td {
+    background: #fff6e5;
+}
+
+.overview-more {
+    margin: 0 0 30px;
+}
+
+/* MIS pipeline: column labels */
+.pipeline-head {
+    color: #8993a8;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.pipeline-head span:last-child {
+    text-align: right;
+}
+
+.records-dates {
+    margin-bottom: 20px;
+}
+
+.pipeline-section {
+    margin-bottom: 25px;
+}
+
+/* ---------- Case page: stage dates (one line per stage, opens for details) ---------- */
+.stage-accordion {
+    overflow: hidden;
+    border: 1px solid #e8ecf4;
+    border-radius: 12px;
+}
+
+.stage-accordion details {
+    border-bottom: 1px solid #e8ecf4;
+}
+
+.stage-accordion details:last-of-type {
+    border-bottom: 0;
+}
+
+.stage-accordion summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 18px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.stage-accordion summary::-webkit-details-marker {
+    display: none;
+}
+
+.stage-accordion summary:hover {
+    background: #f8f9fc;
+}
+
+.stage-accordion summary:focus-visible {
+    outline: 2px solid var(--af-primary);
+    outline-offset: -2px;
+}
+
+.stage-acc-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    min-width: 0;
+}
+
+.stage-acc-title strong {
+    color: #20263a;
+    font-size: 14px;
+}
+
+.stage-acc-title small {
+    color: #8993a8;
+    font-size: 12px;
+}
+
+.stage-acc-chev {
+    color: #8993a8;
+    font-size: 12px;
+    transition: transform 0.15s;
+}
+
+.stage-accordion details[open] .stage-acc-chev {
+    transform: rotate(180deg);
+}
+
+.stage-acc-body {
+    padding: 4px 18px 16px;
+}
+
+.stage-acc-remarks {
+    padding: 14px 18px;
+    border-top: 1px solid #e8ecf4;
+}
+
+.stage-acc-remarks h3 {
+    margin: 0 0 6px;
+    color: #59647d;
+    font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stage-acc-chev {
+        transition: none;
+    }
+}

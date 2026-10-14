@@ -45,6 +45,7 @@ export function useNavSections(): NavSection[] {
             label: 'Administration',
             group: true,
             items: [
+                { to: '/admin/overview', label: 'Overview', icon: '◉', show: can(P.adminUsers) && can(P.reportsView) },
                 { to: '/admin/users', label: 'Users', icon: '☺', show: can(P.adminUsers) },
                 { to: '/admin/roles', label: 'Roles & permissions', icon: '⚿', show: can(P.adminRoles) },
                 { to: '/admin/teams', label: 'Teams', icon: '◎', show: can(P.adminTeams) },
@@ -75,6 +76,8 @@ export function homePathFor(user: { workspaces: string[]; permissions: string[] 
     if (user.workspaces.includes(WS.operations)) return '/ops'
     if (user.workspaces.includes(WS.cse)) return '/cse'
     if (user.workspaces.includes(WS.mofsl)) return '/mofsl'
+    // Admin lands on the management overview; report-only users on the MIS dashboard.
+    if (user.permissions.includes(P.adminUsers) && user.permissions.includes(P.reportsView)) return '/admin/overview'
     if (user.permissions.includes(P.reportsView)) return '/mis'
     if (user.permissions.includes(P.adminUsers)) return '/admin/users'
     if (user.permissions.includes(P.auditView)) return '/admin/audit'

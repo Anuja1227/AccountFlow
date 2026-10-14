@@ -60,6 +60,26 @@ public class AccountsController : ControllerBase
         return Ok(MisCalculator.Build(records, new MisFilters(cse, location, segment), sla));
     }
 
+    // GET: api/accounts/overview?cse=...&location=...&segment=...
+    // Overall Summary Dashboard: organisation KPIs, pending cases per team,
+    // CSE-side vs MOFSL-side rework and the stage pipeline.
+    [HttpGet("overview")]
+    [HasPermission(Permissions.ReportsView)]
+    public async Task<ActionResult<OverviewReport>> GetOverview(
+        [FromQuery] string? cse,
+        [FromQuery] string? location,
+        [FromQuery] string? segment)
+    {
+        var user = await _access.GetRequiredCurrentAsync();
+        var records = await _caseAccess.ScopeRecords(_context.Accounts.AsNoTracking(), user).ToListAsync();
+        var queries = await _caseAccess.ScopeQueries(_context.CaseQueries.AsNoTracking(), user).ToListAsync();
+
+        int sla = await _settings.GetSlaThresholdAsync();
+        CaseCalculator.RefreshForRead(records, CaseService.Today, sla);
+
+        return Ok(OverviewCalculator.Build(records, queries, new MisFilters(cse, location, segment), sla));
+    }
+
     // GET: api/accounts?view=cases|records&actionBy=...&stage=...&openOnly=true
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AccountDto>>> GetAccounts(

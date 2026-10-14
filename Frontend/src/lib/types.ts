@@ -241,6 +241,35 @@ export type MisData = {
     stagePipeline: PipelineStage[]
 }
 
+/** One team's open workload on the Overall Summary Dashboard. */
+export type TeamPending = {
+    team: string
+    pendingCases: number
+    overSlaCases: number
+    averageAgingDays: number
+    oldestReferenceId: string | null
+    oldestAgingDays: number
+    queriesReceived: number
+    openQueries: number
+    queriesRaised: number
+    averageReplyHours: number | null
+}
+
+export type OverviewData = {
+    slaThresholdWorkingDays: number
+    summary: Metrics
+    teams: TeamPending[]
+    rework: {
+        totalCases: number
+        rftCases: number
+        nrftCases: number
+        cseSideOnlyCases: number
+        mofslSideOnlyCases: number
+        bothSidesCases: number
+    }
+    stagePipeline: PipelineStage[]
+}
+
 export type Lookups = {
     statuses: { status: string; stage: string }[]
     stages: string[]

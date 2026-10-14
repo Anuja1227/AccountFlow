@@ -90,7 +90,7 @@ export function CaseDetailPage({ referenceId }: { referenceId: string }) {
         ...(showForm ? [{ key: 'form' as TabKey, label: 'Application form' }] : []),
         ...(showDocs ? [{ key: 'documents' as TabKey, label: `Documents${detail.attachments.length + detail.documents.length ? ` · ${detail.attachments.length + detail.documents.length}` : ''}` }] : []),
         { key: 'queries', label: `Queries${detail.queries.length ? ` · ${detail.queries.length}` : ''}${openQueries ? ` (${openQueries} open)` : ''}` },
-        { key: 'records', label: 'Records & TAT' },
+        { key: 'records', label: 'Records' },
         { key: 'history', label: 'History' },
     ]
     const keys = tabs.map((t) => t.key)
@@ -448,15 +448,18 @@ function OverviewTab({ detail, version, onOpenTab }: { detail: CaseDetail; versi
                     </div>
                     <KeyValue
                         items={[
+                            ['Original Inward Date', date(detail.originalInwardDate)],
+                            ['RFT Status', a.rftStatus],
                             ['Gross TAT', `${number(a.grossTatDays)} days`],
-                            ['Net TAT', `${number(a.netTatDays)} days`],
+                            ['Net TAT', `${number(a.netTatDays)} days (hold ${number(a.queryHoldDays)} d)`],
                             ['Current Aging', a.accountOpeningDate ? 'Closed' : `${number(a.currentAgingDays)} days`],
                             ['SLA Breach', `${a.isSlaBreached ? 'Yes' : 'No'} (threshold ${detail.slaThresholdWorkingDays} days)`],
+                            ['Resubmission Count', String(detail.resubmissionCount)],
                         ]}
                     />
                     <StageTatTable stageTats={a.stageTats ?? []} />
                     <button type="button" className="link-button" onClick={() => onOpenTab('records')}>
-                        Full TAT &amp; records →
+                        Stage dates &amp; records →
                     </button>
                 </section>
                 <CaseSummaryPanel referenceId={detail.referenceId} version={version} />
@@ -618,8 +621,8 @@ function RecordsTab({ detail }: { detail: CaseDetail }) {
     const a = detail.latest
     return (
         <>
-            <div className="overview-grid">
-                <section className="panel overview-main">
+            <div className="records-dates">
+                <section className="panel">
                     <div className="panel-heading">
                         <div>
                             <h2>Stage dates</h2>
@@ -627,34 +630,6 @@ function RecordsTab({ detail }: { detail: CaseDetail }) {
                         </div>
                     </div>
                     <StageDates a={a} />
-                </section>
-                <section className="panel overview-side">
-                    <div className="panel-heading">
-                        <div>
-                            <h2>Auto-calculated &amp; tracking fields</h2>
-                            <p>Calculated by the system (working days, Mon–Fri)</p>
-                        </div>
-                    </div>
-                    <KeyValue
-                        items={[
-                            ['Original Inward Date', date(detail.originalInwardDate)],
-                            ['Resubmission Count', String(detail.resubmissionCount)],
-                            ['Current Stage', `${a.currentStage}${a.isCurrentStageManuallyOverridden ? ' (set manually)' : ''}`],
-                            ['RFT Status', a.rftStatus],
-                            ['Gross TAT', `${number(a.grossTatDays)} days`],
-                            ['Query Hold Days', `${number(a.queryHoldDays)} days`],
-                            ['Net TAT', `${number(a.netTatDays)} days`],
-                            ['Current Aging', a.accountOpeningDate ? 'Closed' : `${number(a.currentAgingDays)} days`],
-                            ['SLA Breach (overall)', `${a.isSlaBreached ? 'Yes' : 'No'} · threshold ${detail.slaThresholdWorkingDays} days`],
-                            ['SLA Breach (stage-wise)', (a.stageTats ?? []).filter((t) => t.isSlaBreached).map((t) => t.stage).join(', ') || 'None'],
-                            ['Query Count', String(a.queryCount)],
-                            ['Touch Count', String(a.touchCount)],
-                            ['Outward Date', date(a.outwardDate)],
-                            ['Resubmission Date', date(a.resubmissionDate)],
-                            ['Query Details', a.queryDetails || '—'],
-                            ['Remarks', a.remarks || '—'],
-                        ]}
-                    />
                 </section>
             </div>
             <section className="panel register-panel">
@@ -797,61 +772,111 @@ function HistoryTab({ detail }: { detail: CaseDetail }) {
     )
 }
 
+/**
+ * Stage dates as one line per stage (main date + stage status); click a stage
+ * to see every field captured for it. The case's current stage opens by itself.
+ */
 function StageDates({ a }: { a: Account }) {
     const physical = a.channel?.toLowerCase() !== 'digital'
-    const rows: [string, [string, string][]][] = [
-        ['Stage 1 — CSE Request to Operations', [
-            ['Inward Date', date(a.inwardDate)],
-            ['Stage 1 Query Raised Date', date(a.stage1QueryRaisedDate)],
-            ['Stage 1 Query Details', a.stage1QueryDetails || '—'],
-            ['Stage 1 Resubmission Date', date(a.stage1ResubmissionDate)],
-            ['Stage status', a.stage1Status],
-        ]],
-        ['Stage 2 — Form Preparation & Submission', [
-            ['Form Prepared Date', date(a.formPreparedDate)],
-            physical ? ['Physical Form Submitted to CSE Date', date(a.physicalFormSubmittedToCseDate)] : ['Digital Form Sent to Client Date', date(a.digitalFormSentToClientDate)],
-            ['Stage status', a.stage2Status],
-        ]],
-        ['Stage 3 — Receipt of Signed Form', [
-            ['Signed Form Received Date', date(a.signedFormReceivedDate)],
-            ['Discrepancy Raised Date', date(a.discrepancyRaisedDate)],
-            ['Discrepancy Type', a.discrepancyType ?? '—'],
-            ['Form Returned to CSE Date', date(a.formReturnedToCseDate)],
-            ['Stage status', a.stage3Status],
-        ]],
-        ['Stage 4 — Resubmission / Discrepancy Resolution', [
-            ['Discrepancy Resolution Received Date', date(a.discrepancyResolutionReceivedDate)],
-            ['Resubmitted Form Received Date', date(a.resubmittedFormReceivedDate)],
-            ['Stage 4 Review Outcome', a.stage4ReviewOutcome ?? '—'],
-            ['Stage status', a.stage4Status],
-        ]],
-        ['Stage 5 — Submission to MOFSL', [
-            ['Submitted to MOFSL Date', date(a.submittedToMofslDate)],
-            ['MOFSL Query Raised Date', date(a.mofslQueryRaisedDate)],
-            ['MOFSL Query Type', a.mofslQueryType ?? '—'],
-            ['MOFSL Query Resolved Date', date(a.mofslQueryResolvedDate)],
-            ['Stage status', a.stage5Status],
-        ]],
-        ['Stage 6 — Account Opened & Communication', [
-            ['Account Number sent by MOFSL', a.mofslAccountNumber ?? '—'],
-            ['Account Opening Date sent by MOFSL', date(a.mofslAccountOpeningDate)],
-            ...(a.mofslAccountDetails ? [['Note from MOFSL', a.mofslAccountDetails] as [string, string]] : []),
-            ['Account Number', a.accountNumber ?? '—'],
-            ['Account Opening Date', date(a.accountOpeningDate)],
-            ['Communication Sent Date', date(a.communicationSentDate)],
-            ['Stage status', a.stage6Status],
-        ]],
+    const stages: { key: string; title: string; main: [string, string | null | undefined]; status: string; items: [string, string][] }[] = [
+        {
+            key: 'Stage 1',
+            title: 'CSE Request to Operations',
+            main: ['Inward', a.inwardDate],
+            status: a.stage1Status,
+            items: [
+                ['Inward Date', date(a.inwardDate)],
+                ['Stage 1 Query Raised Date', date(a.stage1QueryRaisedDate)],
+                ['Stage 1 Query Details', a.stage1QueryDetails || '—'],
+                ['Stage 1 Resubmission Date', date(a.stage1ResubmissionDate)],
+            ],
+        },
+        {
+            key: 'Stage 2',
+            title: 'Form Preparation & Submission',
+            main: ['Prepared', a.formPreparedDate],
+            status: a.stage2Status,
+            items: [
+                ['Form Prepared Date', date(a.formPreparedDate)],
+                physical ? ['Physical Form Submitted to CSE Date', date(a.physicalFormSubmittedToCseDate)] : ['Digital Form Sent to Client Date', date(a.digitalFormSentToClientDate)],
+            ],
+        },
+        {
+            key: 'Stage 3',
+            title: 'Receipt of Signed Form',
+            main: ['Received', a.signedFormReceivedDate],
+            status: a.stage3Status,
+            items: [
+                ['Signed Form Received Date', date(a.signedFormReceivedDate)],
+                ['Discrepancy Raised Date', date(a.discrepancyRaisedDate)],
+                ['Discrepancy Type', a.discrepancyType ?? '—'],
+                ['Form Returned to CSE Date', date(a.formReturnedToCseDate)],
+            ],
+        },
+        {
+            key: 'Stage 4',
+            title: 'Resubmission / Discrepancy Resolution',
+            main: ['Received', a.discrepancyResolutionReceivedDate ?? a.resubmittedFormReceivedDate],
+            status: a.stage4Status,
+            items: [
+                ['Discrepancy Resolution Received Date', date(a.discrepancyResolutionReceivedDate)],
+                ['Resubmitted Form Received Date', date(a.resubmittedFormReceivedDate)],
+                ['Stage 4 Review Outcome', a.stage4ReviewOutcome ?? '—'],
+            ],
+        },
+        {
+            key: 'Stage 5',
+            title: 'Submission to MOFSL',
+            main: ['Submitted', a.submittedToMofslDate],
+            status: a.stage5Status,
+            items: [
+                ['Submitted to MOFSL Date', date(a.submittedToMofslDate)],
+                ['MOFSL Query Raised Date', date(a.mofslQueryRaisedDate)],
+                ['MOFSL Query Type', a.mofslQueryType ?? '—'],
+                ['MOFSL Query Resolved Date', date(a.mofslQueryResolvedDate)],
+            ],
+        },
+        {
+            key: 'Stage 6',
+            title: 'Account Opened & Communication',
+            main: ['Opened', a.accountOpeningDate ?? a.mofslAccountOpeningDate],
+            status: a.stage6Status,
+            items: [
+                ['Account Number sent by MOFSL', a.mofslAccountNumber ?? '—'],
+                ['Account Opening Date sent by MOFSL', date(a.mofslAccountOpeningDate)],
+                ...(a.mofslAccountDetails ? [['Note from MOFSL', a.mofslAccountDetails] as [string, string]] : []),
+                ['Account Number', a.accountNumber ?? '—'],
+                ['Account Opening Date', date(a.accountOpeningDate)],
+                ['Communication Sent Date', date(a.communicationSentDate)],
+            ],
+        },
     ]
+    const tone = (status: string) =>
+        /^(completed|case closed|account opened)$/i.test(status ?? '') ? 'success' : /^pending$/i.test(status ?? '') || !status ? 'neutral' : 'warning'
+
     return (
-        <div className="stage-dates">
-            {rows.map(([title, items]) => (
-                <div key={title}>
-                    <h3>{title}</h3>
-                    <KeyValue items={items} />
-                </div>
+        <div className="stage-accordion">
+            {stages.map((st) => (
+                <details key={st.key} open={a.currentStage === st.key}>
+                    <summary>
+                        <span className="stage-acc-title">
+                            <strong>
+                                {st.key} · {st.title}
+                            </strong>
+                            <small>{st.main[1] ? `${st.main[0]} ${date(st.main[1])}` : 'Not started'}</small>
+                        </span>
+                        <Pill tone={tone(st.status)}>{st.status || 'Pending'}</Pill>
+                        <span className="stage-acc-chev" aria-hidden="true">
+                            ▾
+                        </span>
+                    </summary>
+                    <div className="stage-acc-body">
+                        <KeyValue items={[...st.items, ['Stage status', st.status || 'Pending']]} />
+                    </div>
+                </details>
             ))}
             {a.remarks && (
-                <div>
+                <div className="stage-acc-remarks">
                     <h3>Remarks</h3>
                     <p className="small">{a.remarks}</p>
                 </div>

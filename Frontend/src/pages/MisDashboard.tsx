@@ -73,9 +73,6 @@ export function MisDashboard() {
             caseCount: item?.caseCount ?? 0,
             averageAgingDays: item?.averageAgingDays ?? 0,
             sla: item?.slaBreachCases ?? 0,
-            measured: item?.casesMeasured ?? 0,
-            stageTat: item?.averageStageTatDays ?? 0,
-            stageSla: item?.stageSlaBreachCases ?? 0,
         }
     })
     const maxCases = Math.max(1, ...pipeline.map((s) => s.caseCount))
@@ -171,16 +168,20 @@ export function MisDashboard() {
                 <MetricCard title="Stage 3 discrepancies" value={number(summary.stage3DiscrepancyCases)} detail={`Cases with discrepancies/returns · MOFSL queries: ${number(summary.mofslQueryCases)}`} tone="orange" />
             </section>
 
-            <section className="content-grid">
+            <section className="pipeline-section">
                 <div className="panel">
                     <div className="panel-heading">
                         <div>
                             <h2>Workflow pipeline</h2>
-                            <p>Cases by current stage, with average working days spent in each stage</p>
+                            <p>How many cases are in each stage now, and how long they have been open on average</p>
                         </div>
-                        <span className="panel-tag">7 stages</span>
                     </div>
                     <div className="pipeline-list">
+                        <div className="pipeline-row pipeline-head" aria-hidden="true">
+                            <span>Stage · cases</span>
+                            <span />
+                            <span>Avg. aging</span>
+                        </div>
                         {pipeline.map((item, index) => (
                             <div className="pipeline-row" key={item.stage}>
                                 <div className="pipeline-label">
@@ -192,34 +193,21 @@ export function MisDashboard() {
                                     <div className={`progress-fill stage-${index}`} style={{ width: `${(item.caseCount / maxCases) * 100}%` }} />
                                 </div>
                                 <div className="stage-aging">
-                                    <span>Avg. aging</span>
-                                    <strong>{number(item.averageAgingDays)} days</strong>
-                                    {item.sla > 0 && <span className="sla-chip">{item.sla} SLA</span>}
+                                    {item.stage === 'Completed' || item.caseCount === 0 ? (
+                                        <span>—</span>
+                                    ) : (
+                                        <>
+                                            <strong>{number(item.averageAgingDays)} d</strong>
+                                            <span>open</span>
+                                        </>
+                                    )}
+                                    {item.sla > 0 && <span className="sla-chip">{item.sla} over SLA</span>}
                                 </div>
-                                {item.stage !== 'Completed' && (
-                                    <div className="stage-aging stage-tat" title="Stage TAT: working days spent in this stage, across every case that reached it">
-                                        <span>Avg. in stage</span>
-                                        <strong>{item.measured > 0 ? `${number(item.stageTat)} days` : '—'}</strong>
-                                        <span>({item.measured} case{item.measured === 1 ? '' : 's'})</span>
-                                        {item.stageSla > 0 && <span className="sla-chip">{item.stageSla} over SLA in stage</span>}
-                                    </div>
-                                )}
                             </div>
                         ))}
                     </div>
                 </div>
 
-                <div className="panel">
-                    <div className="panel-heading">
-                        <div>
-                            <h2>Business breakdown</h2>
-                            <p>Case distribution by dimension</p>
-                        </div>
-                    </div>
-                    <BreakdownList title="By CSE" data={mis?.byCse ?? []} />
-                    <BreakdownList title="By location" data={mis?.byLocation ?? []} />
-                    <BreakdownList title="By vertical / segment" data={mis?.bySegment ?? []} />
-                </div>
             </section>
 
             <section className="panel register-panel">
@@ -308,24 +296,6 @@ function MetricCard({ title, value, detail, tone }: { title: string; value: stri
             <div className="metric-title">{title}</div>
             <div className="metric-value">{value}</div>
             <div className="metric-detail">{detail}</div>
-        </div>
-    )
-}
-
-function BreakdownList({ title, data }: { title: string; data: Breakdown[] }) {
-    return (
-        <div className="breakdown-section">
-            <h3>{title}</h3>
-            {data.length === 0 ? (
-                <p className="muted">No data available</p>
-            ) : (
-                data.map((item) => (
-                    <div className="breakdown-row" key={item.name}>
-                        <span>{item.name}</span>
-                        <strong>{number(item.metrics.totalCases)} cases</strong>
-                    </div>
-                ))
-            )}
         </div>
     )
 }

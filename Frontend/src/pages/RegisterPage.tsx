@@ -15,9 +15,10 @@ export function RegisterPage() {
     const [error, setError] = useState('')
     const [search, setSearch] = useState('')
     const [stage, setStage] = useState('')
-    const [owner, setOwner] = useState('')
+    // ?owner=CSE&open=1 (links from the management overview) pre-sets the filters.
+    const [owner, setOwner] = useState(() => new URLSearchParams(window.location.search).get('owner') ?? '')
     const [showRecords, setShowRecords] = useState(false)
-    const [openOnly, setOpenOnly] = useState(false)
+    const [openOnly, setOpenOnly] = useState(() => new URLSearchParams(window.location.search).get('open') === '1')
 
     const load = useCallback(async () => {
         setLoading(true)
