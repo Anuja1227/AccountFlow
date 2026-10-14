@@ -11,6 +11,9 @@ export default defineConfig({
     server: {
         port: 5173,
         strictPort: true,
+        // Preview links: a Cloudflare quick tunnel (https://<random>.trycloudflare.com)
+        // forwards to this dev server. Only that domain is allowed besides localhost.
+        allowedHosts: ['.trycloudflare.com'],
         proxy: {
             '/api': {
                 target: apiTarget,
